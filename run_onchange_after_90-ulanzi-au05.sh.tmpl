@@ -11,6 +11,19 @@
 # unit hash:   {{ include "dot_config/systemd/user/ulanzi-au05-keepalive.service" | sha256sum }}
 set -uo pipefail
 
+# Keep hardware-specific services off machines without this device.
+found=0
+for device in /sys/bus/usb/devices/*; do
+  [ -r "$device/idVendor" ] && [ -r "$device/idProduct" ] || continue
+  if [ "$(cat "$device/idVendor")" = "fff1" ] && [ "$(cat "$device/idProduct")" = "00dd" ]; then
+    found=1
+    break
+  fi
+done
+if [ "$found" -eq 0 ]; then
+  exit 0
+fi
+
 SRC="{{ .chezmoi.sourceDir }}"
 
 if ! command -v gcc &> /dev/null; then
