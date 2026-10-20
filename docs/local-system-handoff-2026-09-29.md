@@ -2,6 +2,13 @@
 
 本文记录本次会话的实施结果及剩余问题，供后续配置、排障使用。状态以本次会话结束前的检查为准；早期故障结论按当时日志记录，不代表已经完成长期稳定性验证。本文不包含订阅地址、访问令牌、私钥、控制 secret、节点名或 `allow-lan` 一类会变的现值。这些用 [`mihomo.md`](mihomo.md) 在本机重读，不要把查到的值补回本文。当时的会话没有推送。
 
+
+> **最新状态（2026-10-20）**：本文保留历史快照，后面的进展覆盖前文待办。
+> Unity 6000.0.73f1 与 Android 全套组件已安装，ARM64/IL2CPP APK 构建通过（第 18 节）；
+> SSD 数据分区已临时挂载到 `~/data`（第 19 节）；内网 Git 主仓库和 7 个子模块读取及推送通道
+> dry-run 通过，浏览器域名直连已由用户确认（第 20–21 节）。profile 弹窗目前未复现、根因未定
+> （第 22 节）；中文候选乱码仍暂停排查。第 23 节汇总可复用流程和剩余待办。
+
 ## 1. 最重要的现状
 
 - 系统为 Arch Linux，内核 `7.2.7-arch1-1`，默认使用 niri / Wayland，GNOME 保留备用，登录管理器为 GDM。
@@ -403,3 +410,150 @@ ldd 发现缺 `libxml2.so.2`，已准备安装 Arch `libxml2-legacy`，正在等
 
 Hub 的 Android 模块安装与工具链验收已完成；Nouveau 下的编辑器交互图形稳定性仍不等于
 本次无图形构建验收。首次使用真实项目时仍应核对该项目需要的目标 API、架构和签名设置。
+
+
+## 19. 磁盘识别、数据分区访问与挂载（2026-10-20）
+
+### 已确认的布局
+
+| 设备 | 类型与标称容量 | 分区及用途 |
+| --- | --- | --- |
+| `/dev/nvme0n1` | Kingston NV2，1 TB NVMe SSD | p3 为当前 Linux 根分区；p5 为约 586 GiB 的 NTFS 数据分区 |
+| `/dev/sda` | Seagate，8 TB SATA 机械硬盘 | sda2 为 NTFS 数据分区，当时未挂载 |
+
+本机识别到两块物理硬盘，只有第一块是 SSD。Unity Hub、指定编辑器、Android 组件和本机
+测试项目均在 SSD 的 Linux 系统分区；8 TB 机械盘未用于此次安装。
+根分区当次查询为总量约 338 GiB、已用 48 GiB、可用 273 GiB；这是历史读数，容量以
+`df -h /` 的当前结果为准。两个数据分区卷标均为“新加卷”，不能只凭卷标区分。
+
+### 挂载实施与验收
+
+`/dev/nvme0n1p5` 起初未挂载，因此无法 `cd` 到它；`/dev/...` 是块设备文件，不是目录。
+用户指定挂载到 `~/data`，先确认该路径不是符号链接、没有现有内容，再创建挂载点。
+实际挂载按本机查询出的分区 UUID 定位，使用内核 ntfs3，指定当前用户 uid/gid 与 umask=022。
+系统操作通过 pkexec 发起，由用户在本机 polkit 弹窗认证。
+
+复用流程（先用 lsblk 确认本机设备，不能把设备编号当作跨机器固定值）：
+
+```sh
+lsblk -o NAME,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINTS
+# Verify the target is empty before mounting.
+mkdir -p "$HOME/data"
+pkexec mount -t ntfs3 -o "uid=$(id -u),gid=$(id -g),umask=022" /dev/nvme0n1p5 "$HOME/data"
+findmnt --mountpoint "$HOME/data" -o SOURCE,TARGET,FSTYPE,OPTIONS
+cd "$HOME/data"
+```
+
+实际验收：findmnt 显示 p5 → `~/data`、ntfs3、rw，用户可读写，目录枚举成功。
+**本次是临时挂载**，未写 fstab，重启后不会自动恢复；持久挂载仍是待办。
+不能为了修复挂载错误而强制清除 NTFS 脏标记、格式化或覆盖已有目录内容。
+
+## 20. 内网 Git 远端、SSH 认证与只读验证（2026-10-20）
+
+### 结果与边界
+
+用户指定的数据分区工程包含一个主仓库远端和 7 个已初始化子模块，全部连接同一内网 Git 主机。
+检查时本机 DNS 已解析到用户指定的内网服务器，SSH/HTTP 可达，因此 **未修改 hosts**。
+公司域名、内网地址、实际仓库路径和逐项结果保存在本机受限报告中，不复制到公共配置：
+
+`~/.local/state/git-remote-checks/20261020/remote-check.json`（父目录 0700，文件 0600）。
+
+首次 SSH 连接尚无 known_hosts 记录。按首次使用信任流程以 `accept-new` 建立主机密钥记录，
+之后改用严格校验；没有关闭校验或替换冲突密钥，也没有取得管理员提供的独立指纹验证。
+随后服务器拒绝本机公钥；用户在该 Gitea 账户添加已有公钥后，`ssh -T` 成功认证。
+GitHub 的既有授权不能替代这台内网 Gitea 的授权。
+
+最终结果：主仓库及 7 个子模块的 **8/8 读取测试、8/8 推送通道 dry-run 均通过**。
+主仓库当前 `Demo/Gamescom` 分支的常规 dry-run 返回 fetch first，表示远端存在本地缺少的
+提交，当前不能直接快进推送；不是域名、SSH 或认证故障。没有执行 fetch/pull、合并、
+实际 push、创建远端分支或改动工程文件。
+
+### 可复用检查流程
+
+1. 核对主仓库所有 remote 的 fetch/push URL、insteadOf/pushInsteadOf、core.sshCommand，
+   并检查 `.gitmodules` 与实际初始化子模块的 remote；不能只看主仓库的 origin。
+2. 通过 `getent hosts`、SSH 有效配置 `ssh -G` 与端口连接区分 DNS、路由、端口问题；
+   将 Git SSH 和浏览器 HTTP 分开验证。
+3. known_hosts 已建立后使用 BatchMode、ConnectTimeout 和 StrictHostKeyChecking=yes，
+   防止检查挂在密码提示上；认证失败时先修公钥授权，不重复尝试所有仓库造成无意义失败。
+4. 对每个实际 remote 执行 `git ls-remote --symref <remote> HEAD`，确认读取与默认分支。
+5. 推送通道使用 `git push --dry-run --no-verify --porcelain <remote> HEAD:<临时检查ref>`。
+   显式 HEAD refspec 可用于 detached HEAD 的子模块；使用唯一检查 ref 避免现有分支进度
+   干扰；dry-run 不写远端，`--no-verify` 避免运行本地 pre-push hook。
+6. 区分“receive-pack 通道可达”与“实际目标分支允许更新”。dry-run 不证明保护分支策略
+   一定允许正式推送；fetch first 也不能通过 force push 绕过。
+
+本次只检查 Git 配置和连接，没有启动 Unity、切换版本或平台，没有进入工程代码修改流程。
+
+## 21. 浏览器内网域名无法访问（2026-10-20）
+
+Git SSH 认证修好后，用户反馈浏览器无法识别同一域名。对照测试：系统解析正确，HTTP 直连
+返回 **200**，经本机 HTTP 代理访问返回 **502**。浏览器原有绕过列表只包含私网 IP 网段、
+本地名称等，不能据此假定域名形式的 URL 会自动直连。
+
+处理：将具体域名加入本机 chezmoi.toml `[data] browserProxyBypass` 列表；Chrome 与
+Chromium flags 模板统一读取该列表，缺省为空，不给其他机器写入这台机器的公司域名。
+`chromium-flags.conf` 为此改成模板，Chrome 原有显卡分支保留。未改 bootstrap、平台排除
+规则、系统 DNS、hosts 或 Mihomo 订阅内容。
+
+验证顺序：渲染模板并审阅 diff → apply → 渲染与目标逐字比对 → 独立临时 profile 的
+headless Chromium 打开站点，确认拿到 Gitea 页面 → 用户保存工作、彻底退出浏览器再打开。
+**用户已确认重启后域名有效**。该站点当时只有 HTTP，访问时需使用明确的 `http://` URL。
+已有主进程不会因新开窗口重读 flags，不能把新开窗口当作代理变更已生效。
+
+公共配置和重启说明见 [chrome.md](chrome.md)；实际域名只留本机 data 与受限报告。
+
+## 22. 浏览器 profile 弹窗排查（2026-10-20）
+
+用户报告代理唤起浏览器时反复出现 `Profile error occurred` /
+`Something went wrong when opening your profile. Some features may be unavailable.`。
+
+已完成的检查：
+
+- 当前 Chromium 与 profile 的 Last Version 均为 **153.0.8010.52**，profile 文件属于当前用户。
+- 浏览器打开期间，直接只读访问 Web Data/History/Favicons 返回 database is locked；
+  这本身不能作为数据库损坏证据，不能据此删除文件或锁。
+- 在本机 0700 诊断目录中复制相关配置/数据库及其 journal/WAL 边车后检查，Web Data、History、
+  Favicons、Login Data、Login Data For Account 的 quick_check 均为 ok；只读取完整性和 schema
+  元数据，不打印密码、Cookie 或历史记录内容。活动数据库副本仍有并发快照局限。
+- 诊断副本启动 headless Chromium 成功，未捕获 profile 数据库初始化错误。
+- 按用户要求实际执行 `chromium --new-window about:blank`，并通过系统默认入口
+  `xdg-open <内网站点URL>` 再次打开页面；调用日志为 Opening in existing browser session，
+  新窗口截图没有该弹窗。**用户确认这次没有出现**。
+
+结论：本轮没有复现故障，具体根因未定；版本、权限、检查过的数据库副本均未给出损坏证据。
+不能把“重启后未复现”写成已经找到并修复数据库问题，也不能断言一定是旧进程、代理或密钥环。
+未清理、重置或删除正在使用的 profile，没有更改书签、登录状态或密码库。
+诊断副本位于 `~/.local/state/chromium-profile-diagnostics/<时间>/`，含浏览器私密数据，不入源。
+若再次出现，优先保留弹窗和当时进程，再采集实际启动日志，而非先泛化清理整个 profile。
+
+## 23. 后续操作流程与当前待办（2026-10-20）
+
+### 已确认完成
+
+- [x] 当前仓库作为唯一 chezmoi 源，旧源备份后删除。
+- [x] 基础工具与开发运行时安装；重复解锁修正且用户确认有效。
+- [x] Unity 指定版本、Android 全套组件、许可证与 ARM64/IL2CPP APK 构建验收。
+- [x] 两块物理硬盘及 SSD 数据分区识别；用户指定的 `~/data` 临时挂载可读写。
+- [x] 内网 Git 主仓库/7 子模块的读取与推送通道验证。
+- [x] 浏览器域名直连配置，用户重启确认有效。
+- [x] profile 弹窗本轮复现检查完成，结果为未复现；不等同根因修复。
+
+### 仍需处理或按需求启动
+
+- [ ] 中文 IME 候选乱码：用户要求暂停，重启输入法未解决，不记为已恢复。
+- [ ] 麦克风准备后再验证语音输入的录音、识别和应用粘贴。
+- [ ] `~/data` 如需重启后持续可用，再配置并验收持久挂载；当前没有自动挂载承诺。
+- [ ] 主仓库目标分支正式推送前先评估本地改动与远端提交，再安排同步；本轮未自动 pull。
+- [ ] profile 弹窗若复现，保留现场继续定位；目前保留原 profile。
+- [ ] 代理订阅更新/回退、面板验收、临时 GitHub hosts 清理、Nouveau 睡眠恢复、Bolt 设备验收
+  等仍沿用此前待办，不因 Git 或浏览器连通而视作全部完成。
+- [ ] Git 提交和推送仍需用户明确授权，本次仅更新文档，不提交或推送。
+
+### 本次工作沉淀的通用顺序
+
+先核对本机真实状态及源目录 → 保留现有改动、限定操作范围 → 通过最小对照测试区分
+网络/认证/运行库/配置问题 → 修改真源或明确属于本机的设置 → 渲染和审阅配置 diff →
+应用并检查 no-op → 使用真实功能验收 → 记录证据、限制和剩余项。
+系统提权由本机 polkit 认证完成；会话工具权限不等于 root 权限。不能把“等待用户输入密码”
+当作安装成功，也不能把“文件已下载”“Hub 已注册”“构建成功”混为同一个验收阶段。

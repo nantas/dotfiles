@@ -133,3 +133,25 @@ browserProxyBypass = ["git.internal.example"]
 `chrome://restart` 也可能沿用旧参数。本次通过使用独立临时 profile 的 headless Chromium
 验证新配置可打开 Git 站点，避免退出用户当前浏览器。用户随后确认彻底重启浏览器后域名有效。
 该站点当前提供 HTTP，未提供 HTTPS。
+
+
+## profile 错误弹窗的保守排查流程
+
+2026-10-20 用户报告外部唤起 Chromium 时出现 profile error，随后在浏览器重启后再次用
+`chromium --new-window about:blank` 和 `xdg-open` 实测，用户确认未再出现。原 profile 未重置，
+具体根因未确定。详细证据见 [本机交接记录](local-system-handoff-2026-09-29.md) 第 22 节。
+
+排查顺序：
+
+1. 捕获真实调用方式与 stderr，核对桌面默认应用、实际 executable、user-data-dir 和 profile。
+   不能只用一个全新临时 profile 启动成功就断言用户的 profile 没问题。
+2. 比对程序版本、profile Last Version、目录/文件归属和进程状态；僵尸进程没有有效 exe
+   并不说明另有一个活跃浏览器。SingletonLock 指向活跃主进程时，不删除它。
+3. 活跃浏览器可能独占 SQLite 数据库，database is locked 不等于损坏。必要时先制作 0700
+   本机诊断副本，连同 journal/WAL 边车检查 quick_check 和 schema 版本，避免输出用户数据。
+4. 在用户可观察的新窗口中复现；已有主进程的 stderr 若指向 /dev/null，另一次启动的
+   Opening in existing browser session 只证明请求转交成功，不足以解释先前的弹窗。
+5. 未复现时记录不确定性并保留原配置；再次复现时保留现场、捕获实际错误，不泛化删除
+   History、Web Data、密码库或整个 profile。
+
+诊断副本可能含私密浏览器数据，只保存在本机 state 目录，不能提交到 dotfiles。
