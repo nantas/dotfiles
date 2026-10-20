@@ -1274,3 +1274,10 @@ Unity Hub 使用官方 AppImage，安装在 `~/.local/opt/unityhub/UnityHub.AppI
 应用菜单 desktop 模板及官方 Hub 图标，mimeapps 注册 unityhub URL handler。
 编辑器由用户指定版本，不跟随当前 LTS 自动升级；本次为 6000.0.73f1。
 Unity 账号、许可证和 Hub/项目运行状态不入源。未修改 bootstrap 或平台排除规则。
+
+
+### 浏览器的本机域名绕过配置
+
+`chromium-flags.conf` 改为 `.tmpl`，与已有 Chrome flags 模板一起读取本机
+`[data] browserProxyBypass` 列表；默认空列表，不改变其他机器的代理行为。
+本机内网域名与 IP 不进入公共配置，细节和重启要求见 [chrome.md](chrome.md)。

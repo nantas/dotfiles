@@ -113,3 +113,23 @@ ffmpeg -hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -i in.mp4 -f null -
 `--enable-features=Vulkan` 的实例，堆栈里能看到 ANGLE 跑在
 `Vulkan 1.4.354 (Intel Iris Plus Graphics 650)` 上。这个 feature 在这代硬件上
 本身就不稳，视频白屏只是它更常见的表现。
+
+
+## 内网站点的代理绕过
+
+Chrome/Chromium 的代理绕过列表需要显式包含内网域名：仅加入私有 IP 网段，不保证域名 URL
+会在送到 HTTP 代理前先按本机 DNS 解析并匹配该网段。本次实测同一内网 Git 站点，直连 HTTP
+返回 200，经本机代理返回 502；无需修改 hosts，正确做法是让浏览器对该域名直连。
+
+两份 flags 模板读取本机 chezmoi.toml `[data]` 的 `browserProxyBypass` 字符串数组；没有设置时
+保持原有绕过列表。具体公司域名只放本机 data，不写进公共源。示例：
+
+```toml
+[data]
+browserProxyBypass = ["git.internal.example"]
+```
+
+应用后需要保存工作、彻底退出浏览器的所有窗口再启动；已有主进程不会因新开窗口而重读 flags，
+`chrome://restart` 也可能沿用旧参数。本次通过使用独立临时 profile 的 headless Chromium
+验证新配置可打开 Git 站点，避免退出用户当前浏览器。用户随后确认彻底重启浏览器后域名有效。
+该站点当前提供 HTTP，未提供 HTTPS。
