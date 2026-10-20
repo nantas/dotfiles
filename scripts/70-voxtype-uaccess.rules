@@ -13,3 +13,6 @@ SUBSYSTEM=="input", ENV{ID_INPUT_KEYBOARD}=="1", ATTRS{idVendor}=="060b", ATTRS{
 # MacBook built-in keyboard. The retired voice-input granted this one with a
 # setfacl RUN rule; uaccess covers it without pinning a username.
 SUBSYSTEM=="input", ENV{ID_INPUT_KEYBOARD}=="1", ATTRS{name}=="Apple SPI Keyboard", TAG+="uaccess"
+# Local USB keyboards; see docs/local-system-handoff-2026-09-29.md.
+SUBSYSTEM=="input", ENV{ID_INPUT_KEYBOARD}=="1", ATTRS{idVendor}=="1321", ATTRS{idProduct}=="5721", TAG+="uaccess"
+SUBSYSTEM=="input", ENV{ID_INPUT_KEYBOARD}=="1", ATTRS{idVendor}=="30fa", ATTRS{idProduct}=="2031", TAG+="uaccess"
