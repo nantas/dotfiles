@@ -1700,6 +1700,8 @@ require('lazy').setup({
   --   ft = { 'rust' },
   -- }
 }, {
+  concurrency = 3,
+  git = { timeout = 60, filter = false },
   performance = {
     cache = { enabled = true, ttl = 3600 * 24 * 7 },
     rtp = {
