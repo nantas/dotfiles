@@ -24,6 +24,7 @@
 | 平台 | 位置 | 来源 |
 | --- | --- | --- |
 | Linux、macOS | `run_onchange_before_12-dev-runtimes.sh.tmpl` | 各工具的官方 per-user 安装器 |
+| Linux、macOS | `run_onchange_before_13-scrapling.sh.tmpl` | `uv tool install "scrapling[shell]"` + `playwright install chromium`，紧跟 12 的 `uv`；见 [`pi-webfetch.md`](pi-webfetch.md) |
 | Windows | `bootstrap/windows.bat` 的 `:SCOOP_DEV_RUNTIMES`、`:DEV_RUSTUP` | scoop（`uv`、`bun`、`nodejs-lts`）与官方 `rustup-init.exe` |
 
 编号 12 是有意的：`run_once_after_50-pi-config.sh.tmpl` 要 `npm` 才能装 pi CLI，而
@@ -65,6 +66,17 @@ Arch extra 里四个包**全都有**（2026-09-30 查询）：
 
 代价要记着：这四个工具**不在 `pacman -Syu` 的覆盖范围内**，版本由脚本里的 tag 决定
 （nvm 现在 pin 在 `v0.40.7`）。升级是手动的。
+
+落点定下来之后还漏了一处收尾：`bootstrap/arch.sh` 的 `PACKAGES` 里仍旧跟着装 Arch 的
+`rustup` 包，与 per-user 安装重复。这个重复会真的制造分叉——pacman 的 `/usr/bin/rustup` 先
+存在时，`install_rustup()` 的「命令不存在才装」判据直接短路，那台机器就留在 Arch 的 rustup +
+`/usr/bin/cargo`（proxy）上，只有没装过该包的机器（本机就是）才走官方安装器。已把 `rustup`
+从 `PACKAGES` 摘掉（2026-09-30），新机器只剩一条路。
+
+**已经装过该包的机器不会被自动卸载**：`/usr/bin/rustup` 还在，`install_rustup()` 仍短路。
+要退出分叉得手工 `pacman -Rns rustup`，之后 dev-runtimes 才会在下次 apply 时装官方那份装到
+`~/.cargo/bin`（`dot_zshrc.tmpl` 把 `~/.cargo/bin` 排在 PATH 前，两套并存时生效的是官方那份，
+但 toolchain 仍会写进 pacman rustup 的 `~/.rustup`）。
 
 ## Windows 侧
 
@@ -131,7 +143,10 @@ bun 的安装器**没有**对应开关：只要 `case $(basename "$SHELL")` 命�
 - **`tree-sitter-cli`**：Arch 有 extra 包（已在 `arch.sh` 的 `PACKAGES` 里），macOS 与
   Windows 需要 `cargo install`。本机那份就是这么来的。属于「下一轮再看」。
 - **`zig`、`deno`**：仓库里没有任何引用（本机的 `deno` 是手工 brew 装的）。
-- **`~/.cargo/bin` 里的零散工具**（`cog`、`gdscript-formatter` 等）：无仓库内引用。
+- **`~/.cargo/bin` 里的零散工具**（`gdscript-formatter` 等）：无仓库内引用。`cog` 原本也在这
+  一列；2026-10-01 起 `just` 与 `cocogitto` 由三平台的系统包层提供（`extra`、Homebrew、scoop 的
+  `main`，版本都是 1.58.0 / 7.0.0），而手工 `cargo install` 的那份 `cog` 仍在：`dot_zshrc.tmpl`
+  把 `~/.cargo/bin` 前置，所以装的机器上生效的是手工那份，不冲突但也没被系统包接管。
 - **`jwu/dev-settings` 仓库本身**：见文首，只作清单参考。
 
 ## 验证

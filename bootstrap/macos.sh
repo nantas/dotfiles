@@ -35,9 +35,14 @@ PACKAGES=(
   "bat"
   "git-delta"
   "jq"
+  "just"
+  "cocogitto"
   "yazi"
   "gitui"
   "glow"
+  # pi-webfetch's YouTube/Bilibili route; scrapling itself is per-user, see
+  # run_onchange_before_13-scrapling.sh.tmpl and docs/pi-webfetch.md.
+  "yt-dlp"
   "zsh"
 )
 
@@ -49,6 +54,9 @@ CASKS=(
   "neovide"
   "input-source-pro"
   "font-fira-mono-nerd-font"
+  # Its config is a managed target, so the app has to exist on a new machine.
+  # See docs/pixpin.md.
+  "pixpin"
 )
 
 FAILED_STEPS=()
@@ -230,7 +238,7 @@ step_required "clone/update dotfiles" ensure_repo
 step_required "configure chezmoi sourceDir" write_chezmoi_config
 
 step "Homebrew formulae" install_formulae
-step "Homebrew casks (Neovide, Input Source Pro, FiraMono Nerd Font)" install_casks
+step "Homebrew casks (Neovide, Input Source Pro, FiraMono Nerd Font, PixPin)" install_casks
 step "default shell (zsh)" set_default_shell
 
 step_required "chezmoi init --apply" chezmoi init --apply

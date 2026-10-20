@@ -68,6 +68,7 @@ Library
 .config/chromium-flags.conf
 .config/environment.d
 .config/fcitx5
+.config/flameshot
 .config/fontconfig
 .config/gtk-4.0
 .config/ghostty/titlebar.css
@@ -78,13 +79,24 @@ Library
 .config/mimeapps.list
 .config/niri
 .config/niri-session-mng
+.config/satty
 .config/sunshine
 .config/swaylock
 .config/systemd
 .config/voxtype
 .config/waybar
 .config/wireplumber
+.config/xdg-desktop-portal
 # Whole subtree: ignoring the files alone still makes chezmoi create the empty
 # parent directories. See docs/chezmoi-notes.md.
 .local
+{{ end }}
+
+# The Vulkan-vs-video workaround and its launcher only make sense on an
+# Intel-only GPU. A host with a discrete card keeps the plain proxy entry and
+# gets neither the extra flags nor the second desktop entry. See docs/chrome.md.
+{{ $gpu := output "sh" "-c" "lspci -d ::0300 2>/dev/null || true" }}
+{{ if not (and (contains "Intel" $gpu) (not (or (contains "NVIDIA" $gpu) (contains "Advanced Micro Devices" $gpu)))) }}
+.local/bin/chrome-webgpu
+.local/share/applications/google-chrome-webgpu.desktop
 {{ end }}

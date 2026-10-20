@@ -147,6 +147,8 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/alacritty.md`](docs/alacritty.md) — Alacritty 与 Ghostty 的逐项对齐，以及 Wayland 下的窗口装饰。
 - [`docs/shell.md`](docs/shell.md) — zsh 配置里的两个坑：nvm 的两种装法与 Apple Silicon 的 MPS 变量。
 - [`docs/dev-env.md`](docs/dev-env.md) — 开发运行时（rustup / nvm + Node / uv / bun）的落点与取舍：为什么 per-user 而不是 pacman、installer 改写 shell 配置的坑、「缺失才装」的判据。
+- [`docs/pi-webfetch.md`](docs/pi-webfetch.md) — webfetch 三个外部 CLI 的落点：`scrapling` 为什么走 `uv tool`、上游 `scrapling install` 在 Arch 上必失败的原因、`[shell]` 与 `[fetchers]` 的区别。
+- [`docs/lightpanda.md`](docs/lightpanda.md) — 原生 headless 浏览器接进 pi 的内置 MCP：实测耗时、markdown 不抽正文的边界、CDP 与 `create_` 目标的同步方式。
 - [`docs/windows-shell.md`](docs/windows-shell.md) — Windows 的 shell 层：scoop、Clink 的 `session.cmd` 接线、用户环境变量、批处理必须 CRLF。
 - [`docs/waybar.md`](docs/waybar.md) — 模块基线与行高约定、配色、`cffi/niri-windows`、GPU 与磁盘取值脚本。
 - [`docs/lockscreen.md`](docs/lockscreen.md) — hyprlock / swaylock、熄屏计时、按屏幕尺寸挑样式。
@@ -163,9 +165,10 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/audio.md`](docs/audio.md) — MacBook CS8409 内置音频：主线只支持 Dell，靠 AUR 的 DKMS 补丁出声。
 - [`docs/ulanzi-au05.md`](docs/ulanzi-au05.md) — Ulanzi Vibe Key (AU05)：原始报文实测、固件 4 秒断连与 keepalive、语音键（F9）接 voxtype、麦克风优先级。
 - [`docs/xwayland-satellite.md`](docs/xwayland-satellite.md) — X11 弹窗焦点、Steam 顶栏菜单闪退、AUR `-git` 包的取舍。
+- [`docs/chrome.md`](docs/chrome.md) — Chrome 的 Vulkan feature 与 Wayland 视频白屏，以及为什么改走 XWayland。
 - [`docs/ime-icons.md`](docs/ime-icons.md) — Fcitx5 托盘图标的覆盖规则与状态对应。
 - [`docs/rime/rime-config.md`](docs/rime/rime-config.md) — Rime 词库、补丁写法、`__patch` 的坑。
-- [`docs/zed/`](docs/zed/)、[`docs/aerospace/`](docs/aerospace/)、[`docs/obsidian/`](docs/obsidian/)、[`docs/totalcmd/`](docs/totalcmd/)、[`docs/inputsource-pro/`](docs/inputsource-pro/) — 各 GUI 应用的配置说明。
+- [`docs/zed/`](docs/zed/)、[`docs/aerospace/`](docs/aerospace/)、[`docs/obsidian/`](docs/obsidian/)、[`docs/totalcmd/`](docs/totalcmd/)、[`docs/inputsource-pro/`](docs/inputsource-pro/)、[`docs/pixpin.md`](docs/pixpin.md) — 各 GUI 应用的配置说明。
 
 源码里的注释保持简短；推导写在上述文档里。
 

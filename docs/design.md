@@ -76,7 +76,7 @@ PowerShell 是为了和原来的 Windows 脚本层一致；批处理没有 `curl
 入口是「先下到 `%TEMP%` 再执行」两行。
 
 **Linux 与 macOS 的 bootstrap 是各自平台上唯一需要 root 或终端的脚本。** Linux 侧的 sudo
-动作：装 41 个包、yay 与 AUR 的 xwayland-satellite-git、`chsh`（走 PAM，同样需要终端）、TTY
+动作：装 46 个包、yay 与 AUR 的 xwayland-satellite-git、`chsh`（走 PAM，同样需要终端）、TTY
 字体、drivetemp、mihomo 的 AUR 包与 drop-in 与面板、sudoers 的免密窗口（见下）。macOS 侧只有两处：`chsh`，以及首次把 Homebrew 的 zsh 加进 `/etc/shells`。
 **Windows 侧不需要任何提权**：scoop 是 per-user 安装，字体 manifest 也写
 `%LOCALAPPDATA%\Microsoft\Windows\Fonts`，所以 `bootstrap/windows.bat` 与 `chezmoi apply`
@@ -141,13 +141,15 @@ dot_pi/agent/
   keybindings.json                     ← pi-config
   APPEND_SYSTEM.md                     ← pi-config
   create_settings.json.tmpl            ← 新机器的初始 settings.json（`create_`；托管键另有 run_after 同步）
-  create_mcp-adapter.json              ← 新机器的初始 mcp-adapter.json（同上）
+  create_mcp.json                      ← 新机器的初始 mcp.json（内置 MCP，同上）
   extensions/eko24ive-pi-ask.json      ← pi-ask 设置（真源；在 /ask-settings 里改设置会被写回）
   extensions/pi-tui-animations.json    ← pi-animations 设置（同上）
 # macOS 专有（本机不存在，从仓库搬入）
 dot_aerospace.toml                         ← desktop-settings: aerospace/.aerospace.toml
 dot_config/ghostty/config                  ← configs: mac/.config/ghostty/config
 Library/Rime/squirrel.custom.yaml          ← desktop-settings: rime/squirrel.custom.yaml
+# macOS 专有（本机存在，从本机收进）
+private_Library/private_Application Support/PixPin/Config/PixPinConfig.json ← 见 docs/pixpin.md
 # Windows 专有（本机不存在，从仓库搬入）
 AppData/Roaming/alacritty/alacritty.toml   ← configs: win/alacritty.toml
 # starship 后来不再是 Windows 专有：Windows 也读 ~/.config/starship.toml，
@@ -175,7 +177,7 @@ run_*.sh
 ### 属性前缀会进源路径
 
 chezmoi 依据权限位给源文件加前缀，所以**源路径与目标路径不一定逐字对应**。本仓库里目前有
-八个，其中 `private_` 那个曾经绊了一下：`run_onchange_after_40-fcitx5.sh.tmpl` 的 `include`
+九个，其中 `private_` 那个曾经绊了一下：`run_onchange_after_40-fcitx5.sh.tmpl` 的 `include`
 写目标路径 `profile` 会直接渲染失败，必须写源路径 `private_profile`。
 
 | 源路径 | 目标 | 权限 |
@@ -183,6 +185,7 @@ chezmoi 依据权限位给源文件加前缀，所以**源路径与目标路径�
 | `dot_config/fcitx5/private_profile` | `~/.config/fcitx5/profile` | 600 |
 | `private_dot_pi/private_agent/**` | `~/.pi/agent/**` | 700（目录） |
 | `private_Library/Rime/squirrel.custom.yaml` | `~/Library/Rime/squirrel.custom.yaml` | 700（目录） |
+| `private_Library/private_Application Support/PixPin/Config/PixPinConfig.json` | `~/Library/Application Support/PixPin/Config/PixPinConfig.json` | 700（目录，`Application Support` 一节也带前缀） |
 | `dot_config/waybar/scripts/executable_disk-temp.sh` | `~/.config/waybar/scripts/disk-temp.sh` | 755 |
 | `dot_local/bin/executable_niri-clipboard-history` | `~/.local/bin/niri-clipboard-history` | 755 |
 | `dot_local/bin/executable_niri-lock` | `~/.local/bin/niri-lock` | 755 |
@@ -198,11 +201,11 @@ chezmoi 依据权限位给源文件加前缀，所以**源路径与目标路径�
 
 ### 已导入的文件
 
-阶段 1 与平台搬入已完成（见「实施状态」）。当前源里共 **109 个目标文件**（去重口径 = Linux
-目标 + macOS 专有 + Windows 专有）：**87 个 Linux 目标 + 5 个 macOS 专有 + 17 个 Windows
+阶段 1 与平台搬入已完成（见「实施状态」）。当前源里共 **110 个目标文件**（去重口径 = Linux
+目标 + macOS 专有 + Windows 专有）：**87 个 Linux 目标 + 6 个 macOS 专有 + 17 个 Windows
 专有**；23 个 `.tmpl`（其中 10 个是 `run_*` 动作脚本），3 个 `create_` 目标。`chezmoi diff`
-在 Linux 上为空，macOS / Windows 目标由 `.chezmoiignore` 按 OS 排除。数字于 2026-09-30 重算
-（三个平台各 87 / 36 / 39，后两个减去 Linux 目标集得 5 / 17）。
+在 Linux 上为空，macOS / Windows 目标由 `.chezmoiignore` 按 OS 排除。数字于 2026-10-09 重算
+（三个平台各 87 / 37 / 39，后两个减去 Linux 目标集得 6 / 17）。
 
 数字这样复现：当前平台直接跑 `chezmoi managed --include=files`；另两个平台把
 `.chezmoiignore` 里的 `.chezmoi.os` 替换成 `"linux"` / `"darwin"` / `"windows"` 字面量各存
@@ -292,22 +295,32 @@ git 先读 XDG 那份、再读 `~/.gitconfig`，后者覆盖前者，所以个�
 | --- | --- | --- |
 | 静态资源（pi 只读） | `agents/`、`skills/`、`prompts/`、`themes/` | **已纳入**，源是真源 |
 | 人工维护的配置 | `keybindings.json`、`APPEND_SYSTEM.md` | **已纳入**，源是真源 |
-| 会被 pi 回写 | `settings.json`、`mcp-adapter.json` | **已纳入**：`create_` 打底，`settings.json` 的托管键再由 `run_after_` 脚本同步 |
+| 会被 pi 回写 | `settings.json`、`mcp.json` | **已纳入**：`create_` 打底，`settings.json` 的托管键再由 `run_after_` 脚本同步 |
 | 设置面板会回写 | `extensions/*.json`（pi-ask、pi-animations） | **已纳入**，源是真源；只有改设置时才被写回 |
 | 凭据与运行时 | `auth.json`、`sessions/`、`models-store.json`、`*-cache.json`、`install/`、`bin/`、`npm/` | **绝不纳入** |
 
 `settings.json` 会被 pi 写入 `lastChangelogVersion`（看过哪版 changelog）、
-`defaultProvider` / `defaultModel` / `defaultThinkingLevel`（`/model` 切换），`mcp-adapter.json` 会被
-`/mcp` 改写。这两份用 `create_` 前缀：**只在目标不存在时**渲染一次，之后不再碰。新机器因此
+`defaultProvider` / `defaultModel` / `defaultThinkingLevel`（`/model` 切换），`mcp.json` 会被
+`/mcp` 改写（改 exposure 或启用、禁用 server 时，写回的是定义该 server 的那份文件）。这两份用
+`create_` 前缀：**只在目标不存在时**渲染一次，之后不再碰。新机器因此
 拿到一份能开箱用的配置，本机后来被 pi 改成什么样，都不会在下次 apply 时被抹掉。
 
 代价是源与磁盘会漂移，所以跨机器必须一致的那几个键另走一条**字段级**通道：
 `run_after_55-pi-settings-sync.sh.tmpl` 每次 apply 渲染 `create_settings.json.tmpl`，把
-`extensions`、`packages`、`defaultTools`、`theme`、`tuiMode`、`quietStartup`、
+`$schema`、`extensions`、`packages`、`defaultTools`、`theme`、`tuiMode`、`quietStartup`、
 `enableInstallTelemetry`、`defaultProjectTrust`、`hideThinkingBlock` 合并进已存在的文件，
 其余键（`defaultProvider` / `defaultModel` / `defaultThinkingLevel` / `lastChangelogVersion`，
 以及 pi 或扩展以后新加的任何键）原样保留。合并是幂等的：内容一致就不写盘，所以既不在
 mtime 上与 pi 抢文件，也不留下非空的 `chezmoi diff`。
+
+`$schema` 是 pi 发布的编辑器校验入口：`settings.json`、`keybindings.json` 与主题各有一份
+`https://pi.dev/schemas/*.schema.json`（与 npm 包内 `schemas/` 逐字节一致）。
+`settings.json` 把 `$schema` 列进托管键，是为了让已有机器也拿到——`create_` 只在目标不存在时
+渲染。`keybindings.json` 与 `themes/one-dark.json` 是纯真源，直接写在源里即可；后者原先指向
+`raw.githubusercontent.com` 的源文件路径，上游搬家后那个 URL 已经 404。
+`mcp.json` 没有 schema（`pi.dev/schemas/mcp.schema.json` 是 404），`extensions/*.json` 的
+schema 归各扩展自己（pi-ask 是 `src/config/schema.ts` 里的 zod），两者都不加。
+`models.json` 含 per-provider 的 `apiKey`，按「绝不纳入」处理，它的 `$schema` 只存在本机那份。
 
 为什么不整份当纯真源管：那样 `/model` 切一次模型、pi 读一次 changelog，都会变成 apply 要撤销的
 差异。为什么不用 chezmoi 的 `modify_` 目标类型：它要求脚本在 Windows 上也能执行，而这份源是
@@ -317,6 +330,10 @@ Linux / macOS / Windows 共用一份（见「脚本层」）。
 `defaultModel` / `defaultThinkingLevel` 给新机器一个 deepseek 起点，之后跟着 `/model` 走。
 `extensions` 按 `.chezmoi.os` 渲染：Unix 是 `~/bin/pi-config/extensions`，Windows 是
 `c:/bin/pi-config/extensions`（pi 会展开 `~`，见 `dist/utils/paths.js` 的 `expandTilde`）。
+内置 MCP 保持启用：`pi-mcp-adapter` 退役后 `/mcp` 归内核，server 定义落在
+`~/.pi/agent/mcp.json`（源 `create_mcp.json`），依据见 pi 文档 `mcp.md`。`extensions` 与
+`packages` 都是托管键的一部分，所以这条迁移对已有机器同样生效。细节见「pi-mcp-adapter
+退役，改用内置 MCP」。
 
 `packages` 自 2026-09-30 起是**托管键**，源里的列表就是每台机器上的列表：源里存的是 npm
 包名（`npm:@johnnywu/pi-filechanges` …），所以 macOS 那台开发机原先手工换成的 `~/dev/jwu/*`
@@ -336,6 +353,10 @@ Linux / macOS / Windows 共用一份（见「脚本层」）。
 保留 `eko24ive-pi-ask.json` 这个旧文件名：改名会让已有键位配置失联，也会多一处上游同步
 冲突。上游有更新时在 `~/dev/pi-ask` 里 `git fetch upstream && git rebase upstream/main`，
 再升版本发布到 npm，新机器就装到新版。
+
+`@johnnywu/pi-image-gen` 不同：它没有上游，就是本仓库作者写的扩展，仓库在
+`~/dev/pi-image-gen`。本机原先写的是本地路径，2026-10-01 起改为按包名入源，那份本地路径
+会在下一次 apply 时被同步脚本覆盖成 `npm:@johnnywu/pi-image-gen`。
 
 ### 项目级：仓库根的 `.pi/`
 
@@ -555,7 +576,7 @@ run_once_after_50-pi-config.sh.tmpl
   └─ 提示 /reload 生效
 ```
 
-它**不调用** `pi-config/install.sh`（该脚本已删除）：`settings.json` 与 `mcp-adapter.json` 都是 chezmoi
+它**不调用** `pi-config/install.sh`（该脚本已删除）：`settings.json` 与 `mcp.json` 都是 chezmoi
 的 `create_` 目标，再复制一遍就是两个所有者争同一份文件（见上节）。clone 目标仍是固定的
 `~/bin/pi-config`，因为 `create_settings.json.tmpl` 渲染出的 `extensions` 指向它。
 
@@ -900,7 +921,7 @@ home 目录文件，所以那几份文件原样留在家中，只是不再由 ch
 | 源 | 目标 | 说明 |
 | --- | --- | --- |
 | `private_dot_pi/private_agent/create_settings.json.tmpl` | `~/.pi/agent/settings.json` | `extensions` 按 `.chezmoi.os` 分支 |
-| `private_dot_pi/private_agent/create_mcp-adapter.json` | `~/.pi/agent/mcp-adapter.json` | 取本机现状：chrome-devtools 用 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent`，不是 pi-config 里的 `--autoConnect` |
+| `private_dot_pi/private_agent/create_mcp.json` | `~/.pi/agent/mcp.json` | 内置 MCP 的 server 定义。取本机现状：chrome-devtools 用 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent`，另有 `enabled: false` 的 `chrome-devtools-alt` 作 `--autoConnect` fallback |
 
 `create_` 只在目标不存在时写一次，于是：
 
@@ -1005,7 +1026,7 @@ apply 把 6 个 `run_*` 全部重跑了一遍。它们都幂等，重跑的代�
 | 源 | 目标 | 说明 |
 | --- | --- | --- |
 | `dot_config/chrome-flags.conf` | `~/.config/chrome-flags.conf` | Arch 的 `google-chrome-stable` wrapper 读它 |
-| `dot_config/chromium-flags.conf` | `~/.config/chromium-flags.conf` | 同一机制的 chromium 版，内容与上一份逐字相同（除首行） |
+| `dot_config/chromium-flags.conf` | `~/.config/chromium-flags.conf` | 同一机制的 chromium 版，最初与上一份逐字相同（除首行） |
 | `dot_config/mimeapps.list` | `~/.config/mimeapps.list` | 默认浏览器与几个 `x-scheme-handler` 指向 `google-chrome.desktop` |
 
 **口径是「所有 Linux 主机都带代理行」，不是只在本机渲染。** 三份都是普通文件而不是模板，
@@ -1022,6 +1043,32 @@ macOS 与 Windows 的 Chrome 不认这些文件名，`mimeapps.list` 是 XDG 的
 `~/.oh-my-zsh.bak.1790327059`、空的 `~/.config/gtk-3.0/`。当时 **`zellij` 二进制还装着**，上一节
 「不再被使用」只对 macOS 成立；删掉的是那份 `default_shell` / `copy_command` 两行配置。
 同一天稍后把包也卸了：`pacman -Rns zellij`，52 MiB，无反向依赖。
+
+### 2026-10-18 Chrome 视频白屏：不启用 Vulkan，改用 VA-API 硬解
+
+10-17 为硬件 WebGPU 加入的 `--enable-features=Vulkan` 把所有网页视频打成了白屏：带这个
+feature 时 `chrome://gpu` 的 `Skia Backend` 是 `GaneshVulkan`，客户端在这种后端下拿不到
+视频帧纹理（`canvas.drawImage(video)` 读出来接近全黑），其余内容正常。装好
+`intel-media-driver` 后又多一个限制：Vulkan feature 在时 VA-API **根本不初始化**，
+即使显式开启 `AcceleratedVideoDecodeLinuxGL` 也一样（i915 的 VCS 引擎 0ms）。
+
+中间试过 `--ozone-platform=x11`：XWayland 下白屏消失、硬件 WebGPU 也在，但视频只能
+软解（1080p60 多占约 28% 的一个核），且失去原生 Wayland。最终取舍是**视频优先**：
+`chrome-flags.conf` 只留 `--enable-features=AcceleratedVideoDecodeLinuxGL`，
+不启用 Vulkan，WebGPU 退回 null adapter（`--enable-unsafe-webgpu` 时是 SwiftShader）。
+需要硬件 WebGPU 时用一次性覆盖启动，命令写在 [`chrome.md`](chrome.md)。
+
+`chromium-flags.conf` 没有跟着改：这台机器没装 chromium，那份文件目前仍只有两行代理。
+
+硬件 WebGPU 用一个单独的启动器承接，而不是二选一地写死在 `chrome-flags.conf` 里：
+`dot_local/bin/executable_chrome-webgpu` 带 `--ozone-platform=x11 --enable-features=Vulkan`
+和独立 profile，命令行参数排在 wrapper 读的 flags 之后，会覆盖日常那份的硬解 feature。
+两个实例可以同时运行。
+
+**这套东西只对纯 Intel 显的机器成立**，而 `chrome-flags.conf` 原本是 Linux-only 的普通
+文件，会原样推到那台 4070Ti。所以它改成了 `.tmpl`：渲染时用 `lspci -d ::0300` 判断，
+只有「有 Intel 且无 NVIDIA/AMD」才加硬解那行；启动器与 desktop 条目由
+`.chezmoiignore` 里的同一条件排除。带独显的机器只拿到两行代理。
 
 ### 2026-09-27 metacubexd 老方案残留清理
 
@@ -1145,6 +1192,80 @@ polkit 代理、600 秒空闲锁屏和 niri 范围内的输入法变量；GNOME 
 `run_after_55` 为同步 pi 管理项仍每次执行；它无变更时静默，但 `apply -v` 会打印脚本正文。
 因此本版本复跑验收同时记录普通 apply 零输出与 verbose apply 的脚本显示，不能把正文误报为状态修改。
 
+
+### pi-mcp-adapter 退役，改用内置 MCP（2026-10-02）
+
+pi 内置的 MCP 扩展（`builtin:mcp`）此前被 `-builtin:mcp` 关掉，把 `/mcp` 让给
+`npm:pi-mcp-adapter`。内核补上 `exposure: codemode` 之后，适配器赖以存在的理由（「只注册一个
+约 200 token 的 `mcp` 工具、工具按需发现」）已被内核原样吸收，于是把适配器整份卸掉。
+
+实测的上下文成本（同一 prompt 只切 MCP 配置，取系统提示 sections 与工具声明的字符数）：
+
+| 配置 | 进 prompt 的工具声明 | `mcp_servers` 章节 |
+| --- | --- | --- |
+| codemode（现用） | 13 个 / 16,379 字符 | **488 字符** |
+| 无 MCP | 13 个 / 16,379 字符 | — |
+| 三个 server 全改 `direct` | 121 个 / **158,324 字符** | — |
+
+`codemode` 下 105 个 MCP 工具的 schema 一个都不进模型上下文，代价只有 488 字符的
+`mcp_servers` 章节（三个 server 各一行）；换成 `direct` 则净增 141,945 字符（约 3.5 万 token），
+整个 prompt 膨胀 6.2 倍。两者相差 291 倍，这是不把 server 设为 `direct` 的理由。
+
+三处改动：
+
+- `settings.json` 去掉 `-builtin:mcp`（`extensions`）与 `npm:pi-mcp-adapter`（`packages`），
+  两处都在 `create_settings.json.tmpl` 同步跟上——它们是 `run_after_55` 的托管键，源里不改的话
+  下次 apply 会把这次迁移整个写回去。
+- `create_mcp-adapter.json` 改名 `create_mcp.json`（内置实现只读 `~/.pi/agent/mcp.json`）：
+  内容里的 `directTools: false` 换成 `exposure: codemode`，`settings.mcpFooterStatus` 丢弃
+  （内核无对应项）。源里仍是 `blender` + `chrome-devtools` 两条；`comfy-mcp` 是本机新增、
+  `COMFY_BIN` 又是绝对路径，未纳入源。
+- `chrome-devtools` 的参数从 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent` 换成
+  `--autoConnect`。当时判旧值是错的（`pi-agent` 不像 Chrome 的随机 UUID endpoint），**这个判断
+  事后被实测推翻**：Chrome 144+ 在 `chrome://inspect/#remote-debugging` 开启后启用的调试服务
+  不校验 endpoint 路径，`--wsEndpoint .../pi-agent` 照样连得上。连不上的真正原因有两层：
+
+  1. 那个开关从未开启 → Chrome 没在 9222 上监听，报 `ECONNREFUSED 127.0.0.1:9222`；
+  2. `--autoConnect` 走 `puppeteer.connect({ channel: "chrome" })`，要读默认 profile 下的
+     `DevToolsActivePort`，而 `~/Library/Application Support/Google/Chrome/` 受 macOS TCC
+     保护 —— 宿主终端没有「完全磁盘访问权限」时 `cat` 直接报 `Operation not permitted`，
+     工具只报 `Could not find DevToolsActivePort`（误导性措辞）。给 Ghostty 补上满盘访问权限
+     后立刻工作，实测列出 10 个已开页面。
+
+  开关本身是**持久**的：开过之后 `Chrome/Local State` 里留下
+  `devtools.remote_debugging.user-enabled: true`，Chrome 重启仍有效，所以只需开一次；之后每次
+  连接由 Chrome 弹窗确认——那一步就是「他自己询问我」的来源。
+
+  最终选型是 **`--wsEndpoint` 主用 + `--autoConnect` 作为 `enabled: false` 的 fallback**
+  （`chrome-devtools-alt`）。理由：wsEndpoint 不触发 Chrome 的授权对话框、也不需要终端的 TCC
+  满盘权限，代价是端口 9222 与 endpoint 路径硬编码；autoConnect 端口自适应，但两道前置条件
+  （开关 + TCC）都得在。出问题时在 `/mcp` 里启用 `chrome-devtools-alt`、禁用主 server 即可，
+  零编辑。Ghostty 的完全磁盘访问权限保留，好让 fallback 随时可用。
+
+已卸包、已改源并 apply 验证过：`chezmoi diff --include=files` 为空，源模板渲染与磁盘的 9 个
+托管键逐键一致、`settings.json` 的 mtime 未动（幂等），`~/.pi/agent/mcp-adapter.json` 也
+未被 chezmoi 回收、仍在原地。尚未提交。
+
+后来本机同步时手工删掉了那份 `mcp-adapter.json`：源里已经没有它，chezmoi 默认也不 prune，
+所以删前删后 `chezmoi diff --include=files` 都是空的；同一次同步里 `~/.pi/agent/mcp.json`
+按源创建。新机器只会拿到 `mcp.json`，不会再有 `mcp-adapter.json`。
+
+### PixPin 配置纳管（2026-10-09）
+
+PixPin（macOS）把状态摊在 `~/Library/Application Support/PixPin/`：`Config/PixPinConfig.json`
+是设置，`LocalStorage.data` 是 Qt `QSettings`（配置窗口的位置与大小、截图矩形）。只有前者
+进源，理由与 Input Source Pro 那份 plist 相同——后者拖一下窗口就变。两条与既有做法不同的
+取舍：
+
+- 源里存**原样单行字节**，不做 `jq -S` 规范化：应用写回也是单行，两边格式一致时 `diff`
+  只会因真实改设置而报警；源格式化成多行反而让每次 GUI 改动都多出一层格式噪声。
+- `Application Support` 那一节也带 `private_` 前缀，因为 `~/Library/Application Support`
+  是 `0700`，而 chezmoi 的目录权限只能由源名表达。少了它，apply 会把权限放宽成 `0755`，
+  `chezmoi status` 会以 ` M Library/Application Support` 报出来（第一次试探就是这么发现的）。
+
+`pixpin` cask 同时加进 `bootstrap/macos.sh` 的 `CASKS`：本机原先用 dmg 手装，纳入后由 brew
+接管。托管只是单向的——源是新机器的起点，运行时真源仍是应用自己那份。细节见
+`docs/pixpin.md`。
 
 ### 2026-10-10 Unity Hub 用户安装
 

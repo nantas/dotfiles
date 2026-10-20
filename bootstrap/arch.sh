@@ -27,10 +27,16 @@ PACKAGES=(
   "fzf"
   "eza"
   "fd"
+  "ripgrep"
   "bat"
   "git-delta"
   "jq"
+  "just"
+  "cocogitto"
   "unzip"
+  # pi-webfetch's YouTube/Bilibili route; scrapling itself is per-user, see
+  # run_onchange_before_13-scrapling.sh.tmpl and docs/pi-webfetch.md.
+  "yt-dlp"
   "terminus-font"
   "otf-firamono-nerd"
   "niri"
@@ -51,18 +57,33 @@ PACKAGES=(
   "fuzzel"
   "wtype"
   "wl-clipboard"
+  # Screenshot/annotation flow (Mod+Shift+A / Print); see docs/niri.md.
+  # portal-wlr is what implements the portal Screenshot interface on niri for
+  # flameshot; the grim + slurp it pulls in are its own capture tools, not
+  # something flameshot calls. wayland-utils serves the niri-flameshot-gui
+  # helper, which needs wl_output order only when there is more than one output.
+  "xdg-desktop-portal"
+  "xdg-desktop-portal-gtk"
+  "xdg-desktop-portal-wlr"
+  "flameshot"
+  "satty"
+  "wayland-utils"
   "noto-fonts-cjk"
   "noto-fonts-emoji"
   "noto-fonts"
   "adwaita-fonts"
   "ttf-sarasa-gothic"
+  # VA-API hardware video decode in Chrome. Intel-only driver; an AMD host gets
+  # the equivalent from mesa and can drop this line. See docs/chrome.md.
+  "intel-media-driver"
   "go"
   "gcc"
   "make"
   "pkgconf"
   "gtk3"
   "git"
-  "rustup"
+  # Rust is installed per-user by run_onchange_before_12-dev-runtimes.sh.tmpl;
+  # see docs/dev-env.md.
 )
 
 XWS_PKG="xwayland-satellite"
