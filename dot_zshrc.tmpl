@@ -94,19 +94,20 @@ export MANPAGER="sh -c 'col -bx | bat -l man -p'"
 
 # proxy on
 function pon() {
-  # dfault is 7890, otherwise use arg1
   local port="${1:-7890}"
   export http_proxy="http://127.0.0.1:$port"
   export https_proxy="http://127.0.0.1:$port"
-  export all_proxy="socks5://127.0.0.1:$port"
+  export all_proxy="socks5h://127.0.0.1:$port"
+  export HTTP_PROXY="$http_proxy" HTTPS_PROXY="$https_proxy" ALL_PROXY="$all_proxy"
+  export no_proxy="localhost,127.0.0.1,::1,.localhost,.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,169.254.0.0/16"
+  export NO_PROXY="$no_proxy"
   echo "[Clash] Terminal Proxy ON (Port: $port)"
 }
 
 # proxy off
 function poff() {
-  unset http_proxy
-  unset https_proxy
-  unset all_proxy
+  unset http_proxy https_proxy all_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY
+  unset no_proxy NO_PROXY
   echo "[Clash] Terminal Proxy OFF"
 }
 
@@ -117,6 +118,11 @@ function pstat() {
   echo "ALL:   ${all_proxy:-Direct}"
 }
 {{ if eq .chezmoi.os "linux" }}
+# The system service supplies the proxy; keep shell startup silent.
+if (( $+commands[mihomo] )); then
+  pon >/dev/null
+fi
+
 # ------------------------------
 # niri session attach
 # ------------------------------
