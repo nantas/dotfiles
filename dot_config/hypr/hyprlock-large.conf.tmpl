@@ -110,6 +110,7 @@ input-field {
     valign = center
 }
 
+{{ if not (default false (index . "localDesktop")) -}}
 # Sleep (bottom row, 160px apart). The MacBook hibernates instead of suspending:
 # its S3 is pulled back out of sleep by a Thunderbolt PME every ~45s, while S4
 # powers off for real. See docs/suspend.md.
@@ -125,6 +126,7 @@ label {
     valign = bottom
 }
 
+{{ end -}}
 # Reboot
 label {
     monitor =

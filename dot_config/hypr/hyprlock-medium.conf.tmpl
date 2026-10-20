@@ -116,6 +116,7 @@ input-field {
 # large style's visual density (160px on 2560), and it still leaves 38px of gap
 # between 34px glyphs on the narrowest panel this style serves (900px).
 
+{{ if not (default false (index . "localDesktop")) -}}
 # Sleep. The MacBook hibernates instead of suspending: its S3 is pulled back out
 # of sleep by a Thunderbolt PME every ~45s, while S4 powers off for real.
 # See docs/suspend.md.
@@ -131,6 +132,7 @@ label {
     valign = bottom
 }
 
+{{ end -}}
 # Reboot
 label {
     monitor =

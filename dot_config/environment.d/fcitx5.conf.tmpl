@@ -1,0 +1,8 @@
+{{ if default false (index . "localDesktop") -}}
+# Input method variables are scoped to niri; GNOME retains IBus.
+{{ else -}}
+# Use Fcitx's GTK immodule; see docs/fcitx5.md.
+GTK_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+INPUT_METHOD=fcitx
+{{ end -}}

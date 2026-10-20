@@ -104,6 +104,13 @@ output "HDMI-A-3" {
     transform "normal"
 }
 
+{{ if (default false (index . "localDesktop")) -}}
+// Local display and session policy; see docs/local-system-handoff-2026-09-29.md.
+output "HDMI-A-1" {
+    mode "3840x2160@60"
+    scale 1.5
+}
+{{ end }}
 // prefer-no-csd
 
 layout {
@@ -132,11 +139,14 @@ layout {
 }
 
 spawn-at-startup "waybar"
+{{ if (default false (index . "localDesktop")) -}}
+spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
+spawn-at-startup "systemctl" "--user" "start" "niri-idle.service"
+{{ end }}
 spawn-at-startup "fcitx5"
 spawn-at-startup "wl-paste" "--watch" "cliphist" "store"
 
-// No idle-based swayidle here: locking is on demand (Mod+L) and the screen-off
-// timer runs inside niri-lock while the session is locked. See docs/lockscreen.md.
+// Local idle policy is selected above; see docs/lockscreen.md.
 
 screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 
@@ -234,3 +244,13 @@ binds {
 switch-events {
     lid-close { spawn "sh" "-c" "$HOME/.local/bin/niri-lock"; }
 }
+
+{{ if (default false (index . "localDesktop")) -}}
+// Keep the fallback GNOME session on IBus.
+environment {
+    GTK_IM_MODULE "fcitx"
+    QT_IM_MODULE "fcitx"
+    XMODIFIERS "@im=fcitx"
+    INPUT_METHOD "fcitx"
+}
+{{ end }}

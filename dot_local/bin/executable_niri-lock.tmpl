@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# Serialize manual and idle-triggered locks within this session.
+exec 9>"${XDG_RUNTIME_DIR:?}/niri-lock.lock"
+flock -n 9 || exit 0
+
 # Lock the screen with hyprlock, falling back to swaylock.
 {{- if ne .chezmoi.hostname "archlinux-macmini" }} While the session stays
 # locked, the monitors are powered off after SCREEN_OFF_TIMEOUT seconds of
@@ -42,13 +46,14 @@ if command -v hyprlock >/dev/null 2>&1; then
   esac
   locker=(hyprlock --config "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/$style")
 else
-  locker=(swaylock -f)
+  locker=(swaylock)
 fi
 {{ if ne .chezmoi.hostname "archlinux-macmini" }}
 # The screen-off timer lives exactly as long as the session is locked: swayidle
 # re-arms after every activity, so the monitors go off again after each further
 # idle period while the lock is held.
-swayidle -w timeout "$SCREEN_OFF_TIMEOUT" "niri msg action power-off-monitors" &
+swayidle -w timeout "$SCREEN_OFF_TIMEOUT" "niri msg action power-off-monitors" \
+  resume "niri msg action power-on-monitors" &
 idle_pid=$!
 
 cleanup() {
@@ -57,4 +62,4 @@ cleanup() {
 }
 trap cleanup EXIT
 {{ end }}
-"${locker[@]}" || true
+"${locker[@]}"
