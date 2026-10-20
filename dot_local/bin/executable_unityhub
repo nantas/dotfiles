@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+hub="$HOME/.local/opt/unityhub/UnityHub.AppImage"
+if [ ! -x "$hub" ]; then
+  printf '%s\n' 'Unity Hub AppImage is missing; install it under ~/.local/opt/unityhub.' >&2
+  exit 1
+fi
+exec "$hub" "$@"
