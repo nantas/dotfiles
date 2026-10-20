@@ -137,6 +137,15 @@ dotfiles/
 - `private_dot_pi/private_agent/{agents,skills,prompts}/**` 是 pi 的提示词内容，不是注释，
   不要按注释规范去动它。
 
+### Linux 图形应用入口
+
+- Agent 日常打开网页使用 `browser-tab URL`，打开终端使用 `ghostty-tab`，默认复用现有
+  窗口的标签页；从 SSH 调用时使用 `wattach browser-tab URL` 或 `wattach ghostty-tab`。
+- 不要为普通打开操作使用 `--new-window`、临时 `--user-data-dir` 或独立浏览器自动化实例。
+  需要隔离环境的测试应明确说明用途，不能将隔离会话当作用户已有的浏览器。
+- `ghostty-tab` 不接受 `-e` 或任意启动参数；执行远程命令直接使用 SSH。多窗口选择与
+  能力边界见 `docs/wayland-attach.md` 的「默认复用标签页」。
+
 ### 以下操作必须先征求用户同意
 
 - 对一台**尚未比对**的机器执行 `chezmoi apply`。

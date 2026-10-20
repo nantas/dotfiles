@@ -1,0 +1,11 @@
+#!/bin/sh
+# Reuse the daily Chromium profile; see docs/wayland-attach.md.
+if [ "$#" -eq 0 ]; then
+    set -- about:blank
+fi
+for url do
+    case "$url" in
+        -*) echo 'browser-tab: URLs only; browser flags are not accepted' >&2; exit 2 ;;
+    esac
+done
+exec /usr/bin/chromium "$@"

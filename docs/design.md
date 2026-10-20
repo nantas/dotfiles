@@ -1281,3 +1281,11 @@ Unity 账号、许可证和 Hub/项目运行状态不入源。未修改 bootstra
 `chromium-flags.conf` 改为 `.tmpl`，与已有 Chrome flags 模板一起读取本机
 `[data] browserProxyBypass` 列表；默认空列表，不改变其他机器的代理行为。
 本机内网域名与 IP 不进入公共配置，细节和重启要求见 [chrome.md](chrome.md)。
+
+### Agent 复用图形应用标签页
+
+新增 Linux 入口 `dot_local/bin/executable_browser-tab` 和 `executable_ghostty-tab`，
+让 agent 日常打开操作复用默认 Chromium 会话和 Ghostty 的 GTK 窗口标签页。
+不替换原始应用命令，不影响 niri 窗口恢复和显式新窗口操作；现有 `.local` 平台排除
+规则保证它们只部署到 Linux。调用约定写入 `AGENTS.md`，实现限制与远程验收见
+[wayland-attach.md](wayland-attach.md) 的「默认复用标签页」。

@@ -259,10 +259,11 @@ ssh "$remote" "zsh -ic 'wattach niri msg -j focused-window'"
 图形应用，可执行：
 
 ```sh
-ssh "$remote" "zsh -ic 'wattach -d ghostty'"
+ssh "$remote" "zsh -ic 'wattach -d ghostty-tab'"
 ```
 
-验收：退出该次 SSH 后应用仍存在，再查询窗口列表确认。`-d` 表示脱离 SSH 会话，
+验收：现有 Ghostty 有窗口时新增标签页；没有窗口时启动窗口。退出该次 SSH 后应用仍存在，
+再查询窗口列表确认；标签页不会新增 niri 窗口 ID。`-d` 表示脱离 SSH 会话，
 不表示开机自启，也不保证应用已成功启动；失败时应检查应用日志。
 不要用锁屏、关闭窗口或重启桌面作为第一项控制测试。确需远程锁屏时使用
 `wattach -d niri-lock`，原因见 [lockscreen.md](lockscreen.md)。
@@ -282,6 +283,52 @@ ssh "$remote" "zsh -ic 'wattach -d ghostty'"
 每项记录「通过／失败、时间、报错或图片」，至少分开记录：SSH 登录、图形会话附加、
 窗口状态读取、屏幕截图传输、窗口截图、窗口聚焦、应用脱离 SSH 存活。连接超时先查网络
 与服务；认证失败先查用户和凭据；图形查询失败再查会话环境。
+
+## 默认复用标签页
+
+Linux 上部署了 `~/.local/bin/browser-tab` 与 `~/.local/bin/ghostty-tab`，并在仓库
+`AGENTS.md` 约定 agent 默认使用这两个入口。它们不是拦截所有进程的全局策略；其他仓库
+或 Mac 端 agent 也应读取本节并遵循此约定。显式运行原始应用、桌面菜单的“新窗口”操作、
+网站主动弹窗或自动化工具的独立浏览器实例，不会被这两个入口改写。
+
+```sh
+browser-tab https://example.com
+browser-tab                         # Open a blank tab.
+ghostty-tab
+ghostty-tab --list                   # List GTK window IDs.
+ghostty-tab --window 7               # Use an ID from --list.
+```
+
+从 Mac 执行时仍需按前文设置 `remote`：
+
+```sh
+ssh "$remote" "zsh -ic 'wattach browser-tab https://example.com'"
+ssh "$remote" "zsh -ic 'wattach -d ghostty-tab'"
+```
+
+`browser-tab` 通过系统 `/usr/bin/chromium` 打开 URL，沿用其 flags 和默认用户目录，
+不传 `--new-window`，无参数时传入 `about:blank`，拒绝把浏览器启动选项当作 URL 传入。
+默认用户目录已有普通窗口时，Chromium 将 URL 交给现有会话；没有时才创建窗口。
+多 Chromium 窗口时由浏览器选择接收窗口，不保证始终是同一个窗口。若现有实例使用了
+另外的 `--user-data-dir`、独立 profile、访客或隐身会话，不能保证与默认入口合并。
+不要给常规 agent 浏览加临时用户目录；浏览器自动化若要复用用户实例，需要单独验证
+该工具的连接方式，本入口不等于浏览器自动化或 CDP 连接器。
+
+`ghostty-tab` 通过会话 DBus 查询默认 Ghostty 实例的 GTK 窗口，并触发该窗口的
+`org.gtk.Actions` 的 `new-tab` 动作。默认选择 GTK ID 最大的窗口，也就是该实例当前
+最新创建的窗口；不声称是当前聚焦窗口。可用 `--window` 明确指定，ID 取自 `--list`，
+不是 niri 的窗口 ID。没有已有窗口时才通过 `/usr/bin/ghostty --gtk-single-instance=true`
+启动窗口。依赖 Python PyGObject/Gio 和 GTK 版 Ghostty 的窗口动作接口，本机已具备。
+自定义 Ghostty `class` 或 `--gtk-single-instance=false` 的独立实例不在此入口的选择范围。
+
+普通 `ghostty` 启动命令和 `gtk-single-instance=true` 只保证复用应用进程，不保证复用
+窗口为标签页。本入口不支持 `-e`、工作目录和其他启动参数；直接执行任务优先使用 SSH，
+不要把命令伪装成终端标签页参数。窗口动作可参考
+[Ghostty GTK 实现](https://github.com/ghostty-org/ghostty/blob/main/src/apprt/gtk/class/window.zig)。
+
+本机 2026-10-20 实测两个入口各调用一次后，Chromium 与 Ghostty 的 niri 窗口数量均未增加；
+Ghostty 的 `new-tab` 动作存在且可调用。测试打开了一个 Chromium 空白标签页和一个
+Ghostty 标签页，没有关闭用户已有窗口或标签页。Mac 经 SSH 的调用仍需远端验收。
 
 ## 画面捕获与所谓“读取渲染缓存”的边界
 

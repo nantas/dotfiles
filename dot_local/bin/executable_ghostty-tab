@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+"""Open a tab through Ghostty's GTK actions; see docs/wayland-attach.md."""
+
+import argparse
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+from gi.repository import Gio, GLib
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--window", type=int, help="Ghostty GTK window ID (not a niri ID)")
+    parser.add_argument("--list", action="store_true", help="List available GTK window IDs")
+    args = parser.parse_args()
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+    name = "com.mitchellh.ghostty"
+
+    def call(path, interface, method, parameters=None):
+        return bus.call_sync(
+            name, path, interface, method, parameters, None,
+            Gio.DBusCallFlags.NO_AUTO_START, 5000, None,
+        )
+
+    owner = bus.call_sync(
+        "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus",
+        "NameHasOwner", GLib.Variant("(s)", (name,)), None,
+        Gio.DBusCallFlags.NONE, 5000, None,
+    ).unpack()[0]
+    ids = []
+    root = "/com/mitchellh/ghostty/window"
+    if owner:
+        xml = call(root, "org.freedesktop.DBus.Introspectable", "Introspect").unpack()[0]
+        ids = sorted(int(node.attrib["name"]) for node in ET.fromstring(xml).findall("node")
+                     if node.attrib.get("name", "").isdigit())
+    if args.list:
+        for window_id in ids:
+            print(window_id)
+        return
+    if args.window is not None and args.window not in ids:
+        parser.error("requested GTK window does not exist; use --list")
+    if not ids:
+        os.execv("/usr/bin/ghostty", ["ghostty", "--gtk-single-instance=true"])
+    window_id = args.window if args.window is not None else ids[-1]
+    call(f"{root}/{window_id}", "org.gtk.Actions", "Activate",
+         GLib.Variant("(sava{sv})", ("new-tab", [], {})))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except GLib.Error as error:
+        print(f"ghostty-tab: {error.message}", file=sys.stderr)
+        sys.exit(1)
