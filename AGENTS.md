@@ -140,7 +140,9 @@ dotfiles/
 ### Linux 图形应用入口
 
 - Agent 日常打开网页使用 `browser-tab URL`，打开终端使用 `ghostty-tab`，默认复用现有
-  窗口的标签页；从 SSH 调用时使用 `wattach browser-tab URL` 或 `wattach ghostty-tab`。
+  窗口的标签页。从 SSH 执行用 `zsh -ic 'wattach COMMAND'`，结果是这次 SSH 的 stdout，不要在远端落盘再拷回。打开网页或终端仍用 `wattach browser-tab URL`、`wattach ghostty-tab`。要看画面用 `wattach grim -`，不要用 niri 的截图动作再传文件。
+- niri 卡死时不要从 SSH 重启 `niri.service`。强杀会把座位退回 GDM，用户服务里拉起的 niri 占不了已被占用的 TTY。见 `docs/wayland-attach.md` 的「合成器停掉之后」。
+- 持久远程终端用 `ssh -t "$remote" 'tmux new -A -s main'`。非交互 SSH 不读 `.zshrc`，`LANG` 和 tmux 的 `PATH` 在 `~/.zshenv`；否则 TUI 里的中文会变成 `_`。见 `docs/wayland-attach.md` 的「持久终端」。
 - 不要为普通打开操作使用 `--new-window`、临时 `--user-data-dir` 或独立浏览器自动化实例。
   需要隔离环境的测试应明确说明用途，不能将隔离会话当作用户已有的浏览器。
 - `ghostty-tab` 不接受 `-e` 或任意启动参数；执行远程命令直接使用 SSH。多窗口选择与

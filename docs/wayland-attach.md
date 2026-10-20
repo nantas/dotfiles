@@ -101,7 +101,7 @@ undo 是一段存在环境变量里的 shell 代码，只在同一个 shell 里�
 
 ```sh
 wattach foot             # 在图形会话的环境里开一个终端
-wattach grim /tmp/a.png  # 单条命令，不留痕
+wattach grim -           # 画面写到 stdout；SSH 或管道直接拿到，不另传文件
 wattach -d niri-lock     # -d：脱离 ssh 会话，断线也不收 SIGHUP
 ```
 
@@ -135,154 +135,68 @@ shell 里 export，并打印那行横幅。
 wstat                    # 会话存在 + 本 shell 是否已附加
 wattach
 env | grep -E 'WAYLAND|NIRI|DISPLAY'
-grim /tmp/a.png          # 真的连上了才算数
+wattach grim - >/tmp/a.png # 真的连上了才算数；远程不要再把文件拷回
 niri msg outputs
 wdetach                  # XDG_SESSION_TYPE 应回到 tty
 wdetach                  # 再跑一次应报错并返回 1
 ```
 
-## Mac 通过 SSH 操作本机：逐步验收
+## 从 Mac 执行
 
-此流程不需要远程桌面。Mac 上的 agent 通过 SSH 执行命令，用 niri IPC 读取窗口状态，
-需要检查实际绘制效果时再捕获图片并读取。以下命令分为 Mac 端与登录后的 Linux 端，
-每一步成功后再进行下一步。
+一次 SSH 跑一条 `wattach` 命令。结果就是这次 SSH 的 stdout。不要在 Linux 落盘，再 `scp` 或再开一次连接去读文件。
 
-### 0. 前提与当前验证范围
+### 配置
 
-Linux 端必须满足：
-
-- `sshd.service` 已启用并运行，局域网可以访问 SSH 端口。
-- 使用运行 niri 的同一个普通用户登录 SSH，默认 shell 是 zsh，已部署本仓库的 `.zshrc`。
-- 已登录 niri 桌面。SSH 服务开机启动不等于图形会话自动登录；停在 GDM 登录界面时，
-  SSH 可管理系统，但 `wattach` 没有现成桌面可附加。
-- 电脑处于开机、联网且未挂起的状态。锁屏与挂起不同，锁屏不代表 SSH 服务停止。
-
-2026-10-20 本机检查：SSH 已启用并运行；移除图形环境变量后，模拟 SSH 环境的 zsh
-能执行 `wstat`、`wattach`、`niri msg outputs` 与 `wdetach`，部署的 `.zshrc` 与模板一致。
-当时未部署 Mac 公钥，可先使用 Linux 账户密码登录。Mac 到 Linux 的真实登录、截图传输、
-窗口操作及重启／唤醒后的复验，仍需按下列步骤验收，不能以模拟测试替代。
-
-### 1. 从 Mac 登录
-
-在 Mac 终端设置实际目标，替换占位内容，不要把个人账号与地址写回公共配置：
-
-```sh
-remote='LINUX_USER@LINUX_LAN_IP'
-ssh -t "$remote"
-```
-
-第一次连接应在 Linux 本机运行下列命令，核对 Mac 提示的主机指纹：
+- `sshd` 在跑，局域网能连上。登录用户就是跑 niri 的那个用户，默认 shell 是 zsh，已部署本仓库的 `.zshrc`。
+- 已登录 niri。停在 GDM 时没有可附加的桌面。锁屏不等于 SSH 停止，但这时看到的是锁层，不是锁后面的窗口。
+- 公钥追加到该用户的 `~/.ssh/authorized_keys`，保留已有条目。不要传输私钥，不要把账号、局域网地址或主机指纹写进仓库。无人值守执行前，公钥认证和主机指纹都要已经核对过。首次连接在 Linux 上对照：
 
 ```sh
 ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-密码提示需要的是 Linux 账户密码。公钥登录是可选的后续配置，应将 Mac 的公钥追加到
-Linux 用户的 `~/.ssh/authorized_keys`，保留已有条目；不要传输私钥，也不要将身份文件
-纳入仓库。使用 agent 无人值守执行 SSH 前，先验收公钥认证与主机指纹记录。
+- `grim` 在 `PATH` 里，而且重启后还在。看画面只用它。不要用 niri 的 `screenshot-screen` / `screenshot-window`，也不要假设 `xdg-desktop-portal-wlr` 会把 grim 装上。只放在 `/tmp` 的解包会在重启后消失。
 
-验收：能进入 Linux shell，`whoami` 和 `hostname` 对应预期目标。
+### 调用
 
-### 2. 发现、附加和撤销图形会话
-
-在刚登录的 Linux shell 中执行：
+非交互 SSH 不加载 `.zshrc`，要用交互 zsh 才有 `wattach`。占位不要写回公共配置：
 
 ```sh
-whence -w wattach wstat wdetach
-wstat
-wattach
-niri msg outputs
-wdetach
-wstat
-```
-
-验收：三者都是函数；`wstat` 发现存活的 niri 会话；附加后能列出显示器；撤销后当前
-shell 恢复附加前的环境。若提示 `no live niri session found`，先确认本机已登录 niri，
-且 SSH 使用同一用户，不要硬编码旧 socket 路径。
-
-### 3. agent 执行单条远程命令
-
-回到 Mac 终端执行。SSH 的单条命令通常通过非交互 shell 运行，不加载 `.zshrc`，所以
-必须显式启动交互 zsh 来取得函数：
-
-```sh
-ssh "$remote" "zsh -ic 'wstat'"
+remote='LINUX_USER@LINUX_LAN_IP'
 ssh "$remote" "zsh -ic 'wattach niri msg -j windows'"
-ssh "$remote" "zsh -ic 'wattach niri msg -j workspaces'"
+ssh "$remote" "zsh -ic 'wattach grim -'" > frame.png
 ```
 
-验收：获得窗口和工作区 JSON。窗口状态包含标题、应用标识、窗口 ID 等，不包含窗口内
-的全部文字、控件结构或画面。每次 SSH 命令都是独立 shell，前一次裸调用 `wattach`
-不会让后一次自动继承附加状态，因此每次使用 `wattach COMMAND`。
+每次 SSH 都是新 shell，都要写 `wattach COMMAND`。命令形式在子 shell 里丢掉附加横幅，stdout 只有命令自己的输出。`zsh -ic` 可能在 stderr 报 `can't change option: zle`；不要为此加 PTY，控制字符会混进要解析的输出。
 
-若远程 shell 启动插件出现 TTY 报错，交互诊断可用 `ssh -t`；但不要把 PTY 的控制字符
-混入 agent 要解析的 JSON。应先确认无 PTY 的查询结果干净，再依赖自动解析。
+`grim -` 写出的是 PNG。窗口标题、应用标识和窗口 ID 走 `niri msg`，那份 JSON 里没有画面。断线后还要留着的进程用 `wattach -d`。不要把锁屏、关闭窗口或重启桌面当作第一项控制测试。坐标点击和键盘注入不是 `wattach` 的功能。
 
-### 4. 捕获实际画面并在 Mac 读取
+niri 重启后重新执行 `wattach`，不要复用之前保存的 `NIRI_SOCKET`。挂起期间 SSH 不可用。
 
-本机提供 niri 内建截图命令，不依赖额外安装 `grim`。在 Mac 执行：
+## 合成器停掉之后
+
+niri 卡死时不要从 SSH 执行 `systemctl --user restart niri.service`。这个单元是 `Type=notify`，`niri-session` 用 `systemctl --user --wait start` 守着它。进程不响应退出时，强杀会结束这次图形会话，座位回到 GDM。用户服务里再拉起的 niri 打不开已经被占用的 TTY。恢复桌面要在座位上重新登录。
+
+重新登录后，旧会话里的进程还在，环境里仍是死掉的 `NIRI_SOCKET`。它们不会出现在新桌面的窗口列表里，也会继续占内存。要在新会话里重新打开同一个程序，先结束旧进程。名字里带旧 pid 的 socket 文件可以删掉。`wattach` 会跳过已经死掉的 pid，但别让别的程序再连上去。
+
+## 持久终端
+
+要留在远端终端里操作，用 tmux，不要用一次性的 `ssh host '命令'`。会话名固定为 `main`。
 
 ```sh
-ssh "$remote" "zsh -ic 'wattach niri msg action screenshot-screen --path /tmp/wattach-screen.png'"
-scp "${remote}:/tmp/wattach-screen.png" ./wattach-screen.png
-open ./wattach-screen.png
+ssh -t "$remote" 'tmux new -A -s main'
 ```
 
-验收：Mac 能看到当前聚焦显示器的画面；agent 也应通过自己的图像读取能力打开下载的
-文件，不能只确认文件存在就认定界面正常。单条固定路径便于复验，多任务并发时应改用
-各自唯一的路径，避免互相覆盖。截图命令也会更新 Linux 剪贴板，测试前留意正在使用的
-剪贴板内容。
+`-t` 必须有，否则 tmux 没有终端。断开 SSH 后会话还在。再执行同一条命令就接回去。会话里按 `Ctrl-b` 再按 `d` 只是脱离，不会停掉里面的进程。整机重启会清掉 tmux 服务器；`~/.zshenv` 和 tmux 本体还在，用同一条命令重建会话。
 
-软件单窗口检查可以通过 ID 指定目标；先从 `niri msg -j windows` 获取 ID，再把下面
-的 `123` 替换成实际数值：
+这条命令是非交互 SSH，不读 `.zshrc`。`PATH` 和 `LANG` 必须写在那台机器的 `~/.zshenv`。这个文件不进仓库：macOS 上已有各自的 `~/.zshenv`，用源覆盖会清掉机器私有的环境。
 
-```sh
-ssh "$remote" "zsh -ic 'wattach niri msg action screenshot-window --id 123 --path /tmp/wattach-window.png'"
-scp "${remote}:/tmp/wattach-window.png" ./wattach-window.png
-open ./wattach-window.png
-```
+- `PATH` 要包含 tmux 所在的目录。只写在 `.zshrc` 里时，这条命令会报 `command not found`。
+- `LANG` 必须是 UTF-8，本仓库用 `en_US.UTF-8`。客户端以 POSIX locale 启动时，tmux 关掉 UTF-8 输出，TUI 里的中文会被画成 `_`。窗格内容本身仍是 UTF-8。改完 `LANG` 后要脱离再连，已经附上的客户端不会自己换 locale。
 
-窗口截图不保证包含独立的输入法候选弹窗等其他表面。排查候选字、菜单遮挡或跨窗口
-布局时优先截屏幕；必要时先聚焦目标窗口再捕获，并检查图片确实反映目标状态。
-锁屏不能作为查看锁屏背后桌面的正常途径，验收画面时应确认桌面已解锁。
+tmux 可以是系统包，也可以是 `~/.local/bin/tmux`。后者要同时带上 `~/.local/lib/libutempter.so.0`，并且这些文件必须在根文件系统上，不能放 `/tmp`。`~/.local/bin` 在 `PATH` 里排在 `/usr/bin` 前面，所以即使以后装了系统包，仍然先用这个包装。
 
-### 5. 操作桌面并再次读取结果
-
-从窗口列表取得实际 ID 后，在 Mac 执行：
-
-```sh
-ssh "$remote" "zsh -ic 'wattach niri msg action focus-window --id 123'"
-ssh "$remote" "zsh -ic 'wattach niri msg -j focused-window'"
-```
-
-验收：聚焦窗口的 ID 与目标一致，再按上一步截图检查。启动需要在 SSH 断开后保留的
-图形应用，可执行：
-
-```sh
-ssh "$remote" "zsh -ic 'wattach -d ghostty-tab'"
-```
-
-验收：现有 Ghostty 有窗口时新增标签页；没有窗口时启动窗口。退出该次 SSH 后应用仍存在，
-再查询窗口列表确认；标签页不会新增 niri 窗口 ID。`-d` 表示脱离 SSH 会话，
-不表示开机自启，也不保证应用已成功启动；失败时应检查应用日志。
-不要用锁屏、关闭窗口或重启桌面作为第一项控制测试。确需远程锁屏时使用
-`wattach -d niri-lock`，原因见 [lockscreen.md](lockscreen.md)。
-
-任意坐标点击、键盘注入和控件操作不是 `wattach` 的功能。优先使用应用自身 CLI/API、
-浏览器 DOM 或可用的无障碍接口；这些接口是否可用需要逐个软件验证，不应仅凭能截图
-就宣称任意 GUI 自动化已就绪。
-
-### 6. 重启与唤醒后复验
-
-按实际使用安排分别测试，不由 agent 为验收自动触发重启或挂起：
-
-- 整机重启后先验收 SSH；本机登录 niri 后再验收会话发现、窗口 JSON 与截图。
-- 挂起期间 SSH 不可用；本机唤醒且网络恢复后重新登录，重新运行 `wstat` 与截图步骤。
-- niri 重启后重新执行 `wattach`，不要复用之前保存的 `NIRI_SOCKET`。
-
-每项记录「通过／失败、时间、报错或图片」，至少分开记录：SSH 登录、图形会话附加、
-窗口状态读取、屏幕截图传输、窗口截图、窗口聚焦、应用脱离 SSH 存活。连接超时先查网络
-与服务；认证失败先查用户和凭据；图形查询失败再查会话环境。
+进入会话后的 shell 仍然看不到图形桌面。要操作 niri 时先跑 `wattach`。
 
 ## 默认复用标签页
 
@@ -328,19 +242,10 @@ ssh "$remote" "zsh -ic 'wattach -d ghostty-tab'"
 
 本机 2026-10-20 实测两个入口各调用一次后，Chromium 与 Ghostty 的 niri 窗口数量均未增加；
 Ghostty 的 `new-tab` 动作存在且可调用。测试打开了一个 Chromium 空白标签页和一个
-Ghostty 标签页，没有关闭用户已有窗口或标签页。Mac 经 SSH 的调用仍需远端验收。
+Ghostty 标签页，没有关闭用户已有窗口或标签页。
 
-## 画面捕获与所谓“读取渲染缓存”的边界
+## 画面
 
-Wayland 应用将绘制后的缓冲区交给合成器；普通客户端没有任意读取其他应用缓冲区的
-通用接口。`wattach` 只补足连接会话的环境，不授予缓冲区读取能力。
-参见 [Wayland 架构](https://wayland.freedesktop.org/docs/book/Architecture.html)。
+`wattach` 只把 niri 会话的环境补进当前命令，不读取合成器的内部缓存。要像素，就在同一次 SSH 里执行 `wattach grim -`。niri 26.04 提供 `zwlr_screencopy_manager_v1`，grim 走这条协议；没有 `ext_image_copy_capture_manager_v1`。
 
-合成器支持的捕获协议可以把画面写入共享内存或 DMA-BUF，不必保存 PNG 到磁盘，
-但这仍是画面捕获，不是直接获得软件内部语义状态。具体协议支持必须查询当前合成器，
-不能因为存在协议就认定本机可用；参见
-[Image Copy Capture 协议](https://wayland.app/protocols/ext-image-copy-capture-v1)。
-
-本工作流先验收已经具备的 niri IPC 与内建截图路径。尚未实现无落盘捕获程序或 GPU
-缓冲区到远程视觉 agent 的传输，不把它们列为现成能力。需要文字和控件语义时先查应用
-接口，需要判断乱码、像素、颜色、遮挡与布局时读取实际捕获的图片。
+niri IPC 的截图动作只接受绝对路径，并把图放进剪贴板。它的回复里没有像素，不能当作画面返回调用方的方法。文字和控件语义先查应用自己的接口。
