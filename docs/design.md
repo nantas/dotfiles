@@ -243,22 +243,16 @@ waybar 的 `module_path` 和 swaylock 都不展开 `~`（见 `docs/waybar.md`、
 `~/.config/git/config`，不管里面有没有 include，它照样会往这个文件里写，只是把冲突
 换了个位置。
 
-实际采用的方案是**把 credential 段模板化**：Linux 用 `.chezmoi.homeDir` 拼出的绝对路径，
-其余平台用 PATH 上的 `gh`。
+当前 credential helper 三平台统一从 PATH 调用 `gh`，兼容系统包与用户目录安装。
+早期 Linux 使用便携版的绝对路径，后来新机器通过 pacman 安装 gh，该路径不再成立。
 
 ```ini
-# dot_config/git/config.tmpl
 [credential "https://github.com"]
 	helper =
-	helper = !{{ if eq .chezmoi.os "linux" }}{{ .chezmoi.homeDir }}/.local/bin/gh{{ else }}gh{{ end }} auth git-credential
+	helper = !gh auth git-credential
 ```
 
-选择的理由：Linux 那边的 gh 是 `~/.local/bin` 下的便携版，绝对路径正是 `gh` 自己会回填的
-内容，`diff` 稳定且保持为空，硬编码 `/home/jwu` 同时消除。macOS 的 gh 来自 Homebrew
-（`/opt/homebrew/bin/gh`），Windows 的来自 `~/bin`，两者都在 PATH 上，写死绝对路径反而
-会绑死 brew 前缀（Apple Silicon 与 Intel 不同）。代价是 chezmoi 与 `gh` 名义上共管一个
-文件——若 `gh` 某次改了格式，`chezmoi diff` 会显示差异，`chezmoi apply` 规范化回去，功能
-不受影响。
+chezmoi 与 `gh` 名义上共管公共文件：若 `gh` 写入格式变化，先审阅 diff 再规范化。
 
 同时保持 XDG 路径 `~/.config/git/config` 而**不是** `~/.gitconfig`，否则会在 `~` 下意外
 创建 `~/.gitconfig`。
@@ -1016,7 +1010,7 @@ apply 把 6 个 `run_*` 全部重跑了一遍。它们都幂等，重跑的代�
 
 **口径是「所有 Linux 主机都带代理行」，不是只在本机渲染。** 三份都是普通文件而不是模板，
 因为这次没有按机器分岔的需求。这与 [`onboarding-a-machine.md`](onboarding-a-machine.md) §6
-对 gitconfig 代理的态度不同——**那一条仍然只属于本机**，没有跟着进仓库。差别在代价：
+对 gitconfig 代理的态度不同——**若本机有 `[http]` 代理段，它仍只属于未纳管的 `~/.gitconfig`**，没有跟着进仓库。有没有这段用 `git config --global --get-regexp proxy` 看，不要把结果抄进文档。差别在代价：
 gitconfig 的代理写错只会让 `github.com` 的拉取失败，而 chrome 这份的 `--proxy-bypass-list`
 只放行内网，一旦那台机器上没跑 mihomo，浏览器会**完全上不了网**。新机器若不用这套代理，
 删掉 `--proxy-server` 与 `--proxy-bypass-list` 两行即可。
@@ -1031,11 +1025,10 @@ macOS 与 Windows 的 Chrome 不认这些文件名，`mimeapps.list` 是 XDG 的
 
 ### 2026-09-27 metacubexd 老方案残留清理
 
-这台机器的代理现在是**系统级 mihomo**：`mihomo.service`（AUR 的 `mihomo-bin` 包，见「mihomo：哪些能管，哪些不能」）读
-`/etc/mihomo/config.yaml`，其中 `external-controller: "0.0.0.0:9090"` 加 `external-ui: ui/xd`，
-于是 `http://127.0.0.1:9090/ui/` 直接提供 MetaCubeXD 面板——`/etc/mihomo/ui/xd` 就是那个面板的
-构建产物（Nuxt 静态站，8.1M，`<title>MetaCubeXD</title>`）。订阅来自 `config.yaml` 顶部的
-`#!MANAGED-CONFIG`（wgetcloud，10 天自动更新一次）。**`/etc/mihomo/ui` 不能删**，面板靠它。
+这台机器的代理是**系统级 mihomo**：`mihomo.service`（AUR 的 `mihomo-bin`，见下一节）读
+`/etc/mihomo/config.yaml`。这份是订阅，不进仓库。controller 地址和面板目录不写在配置里，
+由 drop-in 的 `-ext-ctl` / `-ext-ui` 提供；面板文件在 external-ui 指向的目录，**那个目录不能删**。
+订阅链接、控制 secret、当前节点、`allow-lan` 的现值都不记在这里。怎么查见 [`mihomo.md`](mihomo.md)。
 
 那套「源码跑 Nuxt server 再派生子进程 mihomo」的 All-in-One 方案同时退役，它留下的三份
 残留这次清掉：
@@ -1046,45 +1039,34 @@ macOS 与 Windows 的 Chrome 不认这些文件名，`mimeapps.list` 是 XDG 的
 | `~/.config/metacubexd/env` | 600，`CONTROL_TOKEN` / `CLASH_SECRET` / `MIHOMO_BIN` 等 |
 | `~/.local/share/metacubexd/` | 48M，含一份自带的 mihomo 二进制副本、空的 `profiles/`、`cache.db` |
 
-判定它已废弃的依据是 unit 的 `ExecStart` 指向 `/home/jwu/src/metacubexd`，而那个源码目录
-已经不存在——现在再拉起它也只会失败。
+判定它已废弃的依据是 unit 的 `ExecStart` 指向一个已经不存在的源码目录——现在再拉起它也只会失败。
 
-**9090 的对外暴露同时收紧了。** `/etc/systemd/system/mihomo.service.d/override.conf` 原本两行都
-拼成 `EexcStart=`（systemd 实报 `Unknown key 'EexcStart' in section [Service], ignoring`），改成
-正确的
+**9090 的对外暴露同时收紧了。** drop-in 原本把 `ExecStart` 拼成 `EexcStart=`（systemd 忽略未知键），
+先改成只带 `-ext-ctl 127.0.0.1:9090` 的正确键。之后本机 `ss` 上 9090 只听 loopback，局域网地址拒绝连接。
+**用 drop-in 而不是改 `config.yaml` 是有意的**：配置是订阅，手工更新会整文件覆盖。当时以为订阅会把
+`external-controller: "0.0.0.0:9090"` 带回来；下一节更正了这一点——订阅本身没有这两行，它们是早先手工加的，
+刷新时会被抹掉，而不是被写回 `0.0.0.0`。现行 drop-in 还带 `-ext-ui`，见下一节。
 
-```ini
-[Service]
-ExecStart=
-ExecStart=/usr/bin/mihomo -d /etc/mihomo -ext-ctl 127.0.0.1:9090
-```
-
-之后 `external-controller` 收到 `127.0.0.1:9090`，`ss` 从 `*:9090` 变 `127.0.0.1:9090`，
-从局域网地址 `192.168.3.81:9090` 已拒绝连接，面板与本机代理不受影响。
-**用 drop-in 而不是改 `config.yaml` 是有意的**：那份 config 是机场给的完整订阅，每次手工更新
-都会整文件覆盖，`external-controller: "0.0.0.0:9090"` 会被带回来；命令行覆盖与订阅无关。
-
-**`allow-lan` 是有意保留的**：`allow-lan: true` + `bind-address: "*"` 让 `7890` 对整个局域网
-开放（实测局域网地址上可作代理使用）。这是订阅的内容，服务层不碰它；唯一被钉住的设置是
-`mixed-port`，见下一节。
+**`allow-lan`、`bind-address` 和当前节点都不由仓库钉住，也不把现值写进文档。** 它们在订阅或运行时缓存里，
+服务层不改。唯一被钉住的设置是 `mixed-port`，见下一节。早期曾把局域网开放记成有意保留，
+那是把某次订阅的内容误记成了策略；以本节为准。怎么读现值见 [`mihomo.md`](mihomo.md)。
 
 ### mihomo：哪些能管，哪些不能
 
 服务栈是 AUR 的 `mihomo-bin` + `clash-geoip`，外面套三处本地策略。**两者都不在官方仓库**：
 `pacman -Sl extra` 查不到，包名直接进 `pacman -S` 只会得到 `target not found`（2026-09-27
 用 `--print` 干跑实测）。`mihomo-bin` 声明 `Provides: mihomo`，与源码包 `mihomo`（AUR，
-21★）互相 `Conflicts`，只能装一个；本机装的是 `mihomo-bin 1.19.31-1`。**`bootstrap/arch.sh`
-的 `install_mihomo` 因此从 `pacman -S` 改成了 `yay -S`**——这条线原来会失败，不只是本机偏差。
+21★）互相 `Conflicts`，只能装一个。改动当时本机装的是 `mihomo-bin`，现版本用 `pacman -Q mihomo-bin` 看，不写死。
+**`bootstrap/arch.sh` 的 `install_mihomo` 因此从 `pacman -S` 改成了 `yay -S`**——这条线原来会失败，
+不只是本机偏差。
 
 geodata 也一并交代：`mihomo-bin` 的包内容只有 `config.yaml`、二进制与两个 unit，**不带任何
-geodata**；本机生效的 `/etc/mihomo/geoip.metadb` 是手工放的。`clash-geoip`（AUR，PKGBUILD
-实测）装的正是 `/etc/clash/Country.mmdb`，即 `install_mihomo` 那条软链的目标，所以那条链只在
-装了 `clash-geoip` 之后才有对象。
+geodata**。`clash-geoip`（AUR）装的是 `/etc/clash/Country.mmdb`，即 `install_mihomo` 那条软链的目标，
+所以那条链只在装了 `clash-geoip` 之后才有对象。这台机器是这个包还是另外放的地理库，不在这里记；用 [`mihomo.md`](mihomo.md) 的检查重读。
 
 **配置本体不能进仓库**：
-`/etc/mihomo/config.yaml` 是机场给的完整订阅，445 KB，顶行的 `#!MANAGED-CONFIG` 里就带着
-订阅链接（含用户 ID），正文另有 32 处 `password` / `uuid` / `secret` / `psk` 节点凭据。仓库是
-public，所以它和 `~/.gitconfig` 一样留在本机。
+`/etc/mihomo/config.yaml` 是订阅整文件。顶上的 `#!MANAGED-CONFIG` 带订阅链接，正文有节点凭据和 `secret`。
+仓库是 public，所以它和 `~/.gitconfig` 一样留在本机。提交前若不确定，在本机搜这些键，不要把命中行贴进文档。
 
 能管的部分靠两种手段，区别在于**能否抵挡订阅覆盖**：
 
@@ -1094,9 +1076,11 @@ public，所以它和 `~/.gitconfig` 一样留在本机。
 | `ExecStartPre` 补丁脚本 | `mixed-port`（mihomo 没有对应 flag，只能改文件） | 是（每次启动重打） |
 | 直接改 `config.yaml` | 其余全部：`allow-lan`、`bind-address`、`mode`、`dns`… | 否 |
 
-**`config.yaml` 里的 `external-controller` / `external-ui` 已删除**，controller 地址与面板目录
-完全由 drop-in 的 flag 提供。删而不是留着当兜底，是因为**订阅本身不含这两行**——它们是早先
-手工加进 config 的本地值，而订阅刷新是整文件替换，任何手工值都活不过下一次刷新：
+**当时把 `config.yaml` 里的 `external-controller` / `external-ui` 删了**，生效地址以进程的
+`-ext-ctl` / `-ext-ui` 为准，不要假设文件里现在仍是删过的样子。怎么看进程参数见 [`mihomo.md`](mihomo.md)。
+
+删而不是留着当兜底，是因为**订阅本身不含这两行**——它们是早先手工加进 config 的本地值，
+而订阅刷新是整文件替换，任何手工值都活不过下一次刷新：
 
 | 现在写成什么 | 下次刷新订阅后 |
 | --- | --- |
@@ -1140,4 +1124,32 @@ ExecStartPre=+/usr/local/bin/mihomo-overlay
 `_nuxt` 构建 hash 一致），所以内置能力完全够用，仓库不再重复实现一遍。
 
 `Country.mmdb` 由 bootstrap 重新指到 `clash-geoip` 的副本（`/etc/clash/Country.mmdb`，上游
-地理库更新更勤）。
+地理库更新更勤）。已经接入的机器不一定跑过这一段；本机 unit、overlay 和当前节点怎么核对，见 [`mihomo.md`](mihomo.md)。
+
+
+### 2026-09-30 新桌面源目录统一
+
+本机先对账旧源与当前仓库，再将 sourceDir 切换到当前仓库；旧源归档在本机 state 目录后删除。
+当前仓库是唯一配置真源，不保留第二份活动 checkout。
+
+`dot_config/niri/config.kdl` 改为 `.tmpl`，`fcitx5.conf` 同样模板化。
+本机 chezmoi.toml 的 `[data] localDesktop = true` 选择 HDMI-A-1 的 4K/1.5 缩放、
+polkit 代理、600 秒空闲锁屏和 niri 范围内的输入法变量；GNOME 保留 IBus。
+标记默认 false，其他机器不自动套用本机桌面策略。niri-idle.service 只在标记开启的 Linux
+机器渲染；锁屏样式在本机隐藏睡眠按钮，系统禁睡眠仍是机器的 /etc 策略，不进公共源。
+
+锁屏脚本加入 flock，避免手动与空闲锁屏竞争；锁内活动恢复显示器，swaylock 保持前台，
+使锁内计时器生命周期正确。AU05 动作脚本先探测 USB `fff1:00dd`，设备缺席时不启用服务。
+详细接入与安装验收见 local-system-handoff-2026-09-29.md。
+
+`run_after_55` 为同步 pi 管理项仍每次执行；它无变更时静默，但 `apply -v` 会打印脚本正文。
+因此本版本复跑验收同时记录普通 apply 零输出与 verbose apply 的脚本显示，不能把正文误报为状态修改。
+
+
+### 2026-10-10 Unity Hub 用户安装
+
+Unity Hub 使用官方 AppImage，安装在 `~/.local/opt/unityhub/UnityHub.AppImage`，
+程序本体不作为 chezmoi 配置目标。源管理 `dot_local/bin/executable_unityhub`、
+应用菜单 desktop 模板及官方 Hub 图标，mimeapps 注册 unityhub URL handler。
+编辑器由用户指定版本，不跟随当前 LTS 自动升级；本次为 6000.0.73f1。
+Unity 账号、许可证和 Hub/项目运行状态不入源。未修改 bootstrap 或平台排除规则。

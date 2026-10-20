@@ -1,8 +1,9 @@
 # 蓝牙
 
 适配器由系统级 `bluetoothd` 提供，命令行是 `bluetoothctl`，交互式管理用 `bluetuith`（TUI）。
-本机 `bluetuith` 是 `go install` 装到 `~/.local/bin/` 的，不走 pacman，所以 AUR 里那几个同名包
-（`bluetuith` / `bluetuith-bin` / `bluetuith-git`）都别装，否则两份二进制会互相抢 OBEX agent。
+早期参考机器的 `bluetuith` 是 `go install` 装到 `~/.local/bin/` 的；2026-09-30 接入的新桌面
+使用 AUR `bluetuith` 包，命令在 `/usr/bin`。两种来源都可以，避免同时启动两个副本，
+否则它们可能争抢 OBEX agent。不要把早期机器的安装来源当作所有机器的限制。
 
 ## OBEX agent 只有一个槽位
 

@@ -140,6 +140,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 ## 文档
 
 - [`docs/design.md`](docs/design.md) — 仓库的设计推导与实施记录。遇到结构性问题先读它。
+- [`docs/mihomo.md`](docs/mihomo.md) — 代理：仓库钉住什么、哪些现值不进文档、怎么在本机重读。
 - [`docs/onboarding-a-machine.md`](docs/onboarding-a-machine.md) — 在一台新机器上接入的完整流程，给那台机器上的 agent 读。
 - [`docs/chezmoi-notes.md`](docs/chezmoi-notes.md) — chezmoi 的坑：目标路径匹配、双向排除、空父目录、目录权限、脚本记账，以及**home 目录里不纳入源的清单**。
 - [`docs/chezmoi-migration.md`](docs/chezmoi-migration.md) — chezmoi 方案成型之前的评估记录：边界划分、源目录布局、四处模板化。

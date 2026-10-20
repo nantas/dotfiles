@@ -354,3 +354,24 @@ unlock 动作，`loginctl unlock-session` 也没用：niri 不监听 logind 的 
   会被硬件每 ~45 秒拽醒，而 S4 真正断电。见 [`docs/suspend.md`](suspend.md)。
 
 [MrVivekRajan/Hyprlock-Styles]: https://github.com/MrVivekRajan/Hyprlock-Styles
+
+
+## 空闲解锁后立即再锁（2026-09-30）
+
+本机 niri-idle 曾使用 `swayidle -w timeout 600 niri-lock lock niri-lock`。
+`niri-lock` 为了让锁内熄屏计时器覆盖整个锁屏过程，必须等前台 hyprlock/swaylock 结束；
+因此外层的 `-w` 把 swayidle 事件循环阻塞到用户解锁。等待期间积压的锁屏请求可能在解锁后
+执行；flock 只保护同时运行的实例，先前实例结束后它已经释放，无法拦截这个迟到的请求。
+
+日志实测两组紧挨的进程：17:22:53 第一次 authenticated/unlocked 后同秒启动新锁；
+17:59:45 同样发生一次。运行时只有一个外层 swayidle，未发现两个桌面锁屏服务。
+这是队列重放的证据，具体是 logind Lock 还是积压 timeout 不能仅靠非 debug 日志区分。
+
+修法是 **外层 niri-idle 不用 `-w`**，让它持续分发事件；niri-lock 的 flock 拒绝并发重复请求。
+锁内只执行快速显示器操作的 swayidle 可以保留 `-w`。当前禁用系统睡眠，没有 before-sleep
+的同步需要；如果将来恢复睡眠，应另外设计锁屏就绪握手，不把整个交互认证阶段当作等待条件。
+
+依据：[swayidle 上游手册](https://github.com/swaywm/swayidle/blob/master/swayidle.1.scd)，
+其 `-w` 明确阻塞到命令结束。修正已部署并重启 idle 服务，没有强制锁定用户桌面；
+下一次真实空闲解锁需要用户验证。日志另有 hyprlock 退出时 wl_shm 版本错误，尚未独立调查，
+不据此把重复锁屏归咎于密码错误或 GPU。

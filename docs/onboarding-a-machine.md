@@ -296,17 +296,15 @@ Clink；这里**不能**改用 `clink autorun`：Clink 的 `os.setenv` 改不了
 
 ## 6. 网络
 
-Linux 机器上**直连 GitHub 的 HTTPS 是坏的**（`OpenSSL SSL_read: unexpected eof while reading`），
-它给 `github.com` 配了 mihomo 代理：
+有的 Linux 机器直连 GitHub HTTPS 会失败（`OpenSSL SSL_read: unexpected eof while reading`）。
+`~/.gitconfig` 的 `[http]` 段和 `~/.ssh/config` 的 `ProxyCommand` 都是个人层，不进仓库，也不要把查到的值抄回本文。先在本机看：
 
-```toml
-[http "https://github.com/"]
-	proxy = http://127.0.0.1:7890
+```sh
+git config --global --get-regexp 'proxy'
+rg -n 'ProxyCommand|7890' ~/.ssh/config
 ```
 
-**这段是机器相关的**，不要盲目复制到你的机器。你那边的 `git push` 若报 SSL/超时错误，
-先判断是网络环境问题还是本机代理没开，再决定怎么处理；需要时用一次性 `git -c http.proxy=...`
-而不是写进配置。
+`git push` 若报 SSL 或超时，先判断是网络环境问题还是本机代理没开。需要时用一次性 `git -c http.proxy=...`，指向本机 mihomo 的混合端口（仓库里的浏览器 flags 与 `pon` 用 `127.0.0.1:7890`），不要为了整齐写进仓库。服务是否在听、当前节点是什么，见 [`mihomo.md`](mihomo.md)。
 
 浏览器侧是另一个口径：`~/.config/{chrome,chromium}-flags.conf` 里的
 `--proxy-server=http://127.0.0.1:7890` **由 dotfiles 管着，每台 Linux 机器都会拿到**。

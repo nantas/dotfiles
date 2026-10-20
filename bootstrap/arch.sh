@@ -337,8 +337,9 @@ install_mihomo() {
 install_mihomo_overlay() {
   sudo install -m 0755 "$SRC_DIR/scripts/mihomo-overlay.sh" /usr/local/bin/mihomo-overlay
   sudo install -d /etc/systemd/system/mihomo.service.d
-  # The subscription ships external-controller 0.0.0.0 and knows nothing about
-  # mixed-port: the flag pins the controller, the overlay pins mixed-port.
+  # Pin the controller on the command line so a subscription refresh cannot
+  # move or drop it. The overlay re-pins mixed-port, which has no flag.
+  # See docs/mihomo.md.
   printf '%s\n' \
     '[Service]' \
     'ExecStart=' \

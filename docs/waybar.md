@@ -169,7 +169,7 @@ wnmw_build_and_install "$(wnmw_want_commit)"
 就上的那版）；此时 `.version` 若已等于 fallback 就直接跳过，离线不会误重建（fork 未推送时
 记得同步 bump 这个常量）。
 
-本机直连 GitHub 常常不通（mihomo 在 7890，见 `.zshrc` 里的 `proxy` 别名），要让重建走代理就
+本机直连 GitHub 常常不通（mihomo 混合端口见 [`mihomo.md`](mihomo.md)；交互式 zsh 用 `pon`，不是 `proxy` 别名），要让重建走代理就
 带上环境变量，或让 `WNMW_REPO` 走 SSH：
 
 ```bash
