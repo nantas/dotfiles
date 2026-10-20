@@ -21,10 +21,10 @@
 # (portable under ~/bin) both have gh on PATH.
 [credential "https://github.com"]
 	helper = 
-	helper = !{{ if eq .chezmoi.os "linux" }}{{ .chezmoi.homeDir }}/.local/bin/gh{{ else }}gh{{ end }} auth git-credential
+	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = 
-	helper = !{{ if eq .chezmoi.os "linux" }}{{ .chezmoi.homeDir }}/.local/bin/gh{{ else }}gh{{ end }} auth git-credential
+	helper = !gh auth git-credential
 [i18n]
 	logOutputEncoding = utf-8
 	commitEncoding = utf-8
