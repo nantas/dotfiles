@@ -18,6 +18,8 @@ scripts
 {{ if ne .chezmoi.os "windows" }}
 AppData
 .wezterm.lua
+# PowerShell 7 reads its profile from Documents; nothing here reads it there.
+Documents
 {{ end }}
 
 # macOS-only targets.
@@ -41,9 +43,14 @@ Library
 # zed). Their Windows paths live under AppData/.
 # starship is the exception: it reads ~/.config/starship.toml on Windows too, so
 # dot_config/starship.toml.tmpl stays one target for all three platforms.
+# Herdr is a split case: on Windows the daemon reads %APPDATA%\herdr\config.toml
+# and Herdr UI reads its overrides from %APPDATA%\herdr; elsewhere both live under
+# ~/.config/herdr.
 {{ if eq .chezmoi.os "windows" }}
 .zshrc
 .config/alacritty
+.config/herdr/config-gpui.local.toml
+.config/herdr/config.toml
 .config/ghostty
 .config/gitui
 .config/glow
@@ -89,6 +96,42 @@ Library
 .config/xdg-desktop-portal
 # Whole subtree: ignoring the files alone still makes chezmoi create the empty
 # parent directories. See docs/chezmoi-notes.md.
+.local
+{{- end }}
+
+{{ if index . "headless" -}}
+# A Linux box without a GUI reads none of the desktop targets either. `headless`
+# is opt-in per machine ([data] headless = true in chezmoi.toml) and a missing key
+# means a desktop, so the three GUI machines keep their exact target set. The
+# list mirrors the Linux-only block above, plus the GUI terminals and editors;
+# TUI programs (nvim, yazi, gitui, glow) stay. .local goes wholesale because
+# every script under ~/.local/bin here belongs to niri, Wayland or Chrome, and
+# .config/systemd holds only the Ulanzi unit. Keep the two lists in sync.
+# See docs/ecs.md.
+.config/autostart
+.config/chrome-flags.conf
+.config/chromium-flags.conf
+.config/environment.d
+.config/fcitx5
+.config/flameshot
+.config/fontconfig
+.config/gtk-4.0
+.config/ghostty
+.config/hypr
+.config/mimeapps.list
+.config/niri
+.config/niri-session-mng
+.config/satty
+.config/sunshine
+.config/swaylock
+.config/systemd
+.config/voxtype
+.config/waybar
+.config/wireplumber
+.config/xdg-desktop-portal
+.config/alacritty
+.config/neovide
+.config/zed
 .local
 {{ end }}
 

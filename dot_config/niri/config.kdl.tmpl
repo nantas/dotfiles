@@ -145,7 +145,10 @@ window-rule {
     open-floating true
 }
 
-spawn-at-startup "waybar"
+// waybar-watch bounces waybar when an output is missing its bar: on lock/wake
+// waybar 0.15 otherwise keeps only the eDP-1 bar and never recreates the DP-2
+// one. See docs/waybar.md.
+spawn-at-startup "waybar-watch"
 {{ if (default false (index . "localDesktop")) -}}
 spawn-at-startup "/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1"
 spawn-at-startup "systemctl" "--user" "start" "niri-idle.service"

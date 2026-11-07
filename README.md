@@ -1,7 +1,8 @@
 # Dotfiles
 
-我的终端环境。一份 [chezmoi](https://www.chezmoi.io/) 源，描述三台机器——Arch Linux 的桌面
-工作站、macOS、Windows——`git pull` 之后一条 `chezmoi apply`，它们就变成这里描述的样子。
+我的终端环境。一份 [chezmoi](https://www.chezmoi.io/) 源，描述四台机器——Arch Linux 的桌面
+工作站、macOS、Windows、一台 Debian 云服务器——`git pull` 之后一条 `chezmoi apply`，
+它们就变成这里描述的样子。
 
 ## 配了什么
 
@@ -34,7 +35,13 @@
 - **编辑器**：Neovim + Neovide、Zed
 - **共用**：yazi、gitui、glow
 
-### 三台共用
+### Debian（阿里云 ECS）—— 只装终端层
+
+没有桌面，所以桌面配置一个都不落：`.chezmoiignore` 按 `headless` 开关排除 niri / waybar /
+fcitx5 / Ghostty / Alacritty，只留 zsh、starship、zoxide、fzf、Neovim、git、yazi、gitui、glow
+与 pi / herdr。细节见 [`docs/ecs.md`](docs/ecs.md)。
+
+### 四台共用
 
 pi 的 agent 配置（`agents` / `skills` / `prompts` / `themes` / 键位）、git 的公共设置
 （delta、OneHalfDark、`gh` 凭据助手）、FiraMono Nerd Font 与 One Dark 配色。
@@ -53,6 +60,9 @@ sh -c "$(curl -fsLS https://raw.githubusercontent.com/jwu/dotfiles/main/bootstra
 
 # macOS（Homebrew 要先装好）
 bash -c "$(curl -fsLS https://raw.githubusercontent.com/jwu/dotfiles/main/bootstrap/macos.sh)"
+
+# Debian / Ubuntu 服务器（无 GUI；桌面机不设 HEADLESS）
+HEADLESS=1 bash -c "$(curl -fsLS https://raw.githubusercontent.com/jwu/dotfiles/main/bootstrap/debian.sh)"
 ```
 
 ```bat
@@ -61,8 +71,7 @@ curl -fsSL https://raw.githubusercontent.com/jwu/dotfiles/main/bootstrap/windows
 "%TEMP%\dotfiles-bootstrap.bat"
 ```
 
-三个脚本做同一件事：装 chezmoi → clone 到 `~/bin/dotfiles`（Windows 是 `%USERPROFILE%\bin\dotfiles`）
-→ 写下 chezmoi 的 `sourceDir` → 装工具 → `chezmoi init --apply`。Windows 那份还负责三个用户级环境变量
+四个脚本做同一件事：装 chezmoi → clone 到 `~/bin/dotfiles`（Windows 是 `%USERPROFILE%\bin\dotfiles`）→ 写下 chezmoi 的 `sourceDir` → 装工具 → `chezmoi init --apply`。Windows 那份还负责三个用户级环境变量
 （Clink 由终端执行 `session.cmd` 注入，不写 cmd 的 AutoRun）。
 
 Linux 与 macOS 的 bootstrap 是各自平台上**唯一**需要 root 或终端的地方（`chsh` 走 PAM、
@@ -142,6 +151,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/design.md`](docs/design.md) — 仓库的设计推导与实施记录。遇到结构性问题先读它。
 - [`docs/mihomo.md`](docs/mihomo.md) — 代理：仓库钉住什么、哪些现值不进文档、怎么在本机重读。
 - [`docs/onboarding-a-machine.md`](docs/onboarding-a-machine.md) — 在一台新机器上接入的完整流程，给那台机器上的 agent 读。
+- [`docs/ecs.md`](docs/ecs.md) — 阿里云 ECS（Debian 13，无 GUI）：`headless` 开关的形状、`fdfind` / `batcat` 命名差异、GitHub release 被墙时 chezmoi 怎么装、各脚本在无桌面机器上的行为。
 - [`docs/chezmoi-notes.md`](docs/chezmoi-notes.md) — chezmoi 的坑：目标路径匹配、双向排除、空父目录、目录权限、脚本记账，以及**home 目录里不纳入源的清单**。
 - [`docs/chezmoi-migration.md`](docs/chezmoi-migration.md) — chezmoi 方案成型之前的评估记录：边界划分、源目录布局、四处模板化。
 - [`docs/alacritty.md`](docs/alacritty.md) — Alacritty 与 Ghostty 的逐项对齐，以及 Wayland 下的窗口装饰。
@@ -150,6 +160,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/pi-webfetch.md`](docs/pi-webfetch.md) — webfetch 三个外部 CLI 的落点：`scrapling` 为什么走 `uv tool`、上游 `scrapling install` 在 Arch 上必失败的原因、`[shell]` 与 `[fetchers]` 的区别。
 - [`docs/lightpanda.md`](docs/lightpanda.md) — 原生 headless 浏览器接进 pi 的内置 MCP：实测耗时、markdown 不抽正文的边界、CDP 与 `create_` 目标的同步方式。
 - [`docs/windows-shell.md`](docs/windows-shell.md) — Windows 的 shell 层：scoop、Clink 的 `session.cmd` 接线、用户环境变量、批处理必须 CRLF。
+- [`docs/windows-sshd.md`](docs/windows-sshd.md) — Windows 开 OpenSSH Server：能力名与默认 shell、Administrators 组的授权文件位置、scoop 的 `current` 挂载点为何在提权令牌下无法遍历。
 - [`docs/waybar.md`](docs/waybar.md) — 模块基线与行高约定、配色、`cffi/niri-windows`、GPU 与磁盘取值脚本。
 - [`docs/lockscreen.md`](docs/lockscreen.md) — hyprlock / swaylock、熄屏计时、按屏幕尺寸挑样式。
 - [`docs/suspend.md`](docs/suspend.md) — MacBookPro14,2 合盖休眠：S3 被 45 秒硬件唤醒无解，改用 hibernate；resume 挂死的修法与合盖锁屏。
@@ -161,6 +172,8 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/ghostty-gl-version.md`](docs/ghostty-gl-version.md) — Intel HD 4000 上保住硬件渲染的 MESA override。
 - [`docs/gtk4.md`](docs/gtk4.md) — GTK4 全局 CSD 直角微调。
 - [`docs/fontconfig.md`](docs/fontconfig.md) — 字体渲染参数与中文回退：对齐 Ghostty 的 FreeType 默认、`hintstyle` 的取舍、为什么只能用 family 名改字体。
+- [`docs/herdr.md`](docs/herdr.md) — Herdr 与 Herdr UI：三平台的官方安装方式与落层（daemon 走 `run_*`、Linux 的 UI 走 `bootstrap/`）、两个二进制的配置分工、macOS / Linux 两套字体值的分派、四个字体 section 的能力差异、fontdb 的 nameID 16 规则、为什么 fontconfig 对它不生效。
+- [`docs/tailscale.md`](docs/tailscale.md) — Tailscale 为什么没有配置文件可纳管、装机与策略各落哪一层、为什么一律关掉 Tailscale SSH（Tailworm 报告）、对称 NAT 与 DERP 的实测延迟。
 - [`docs/bluetooth.md`](docs/bluetooth.md) — BlueZ OBEX agent 单槽位与冲突诊断。
 - [`docs/audio.md`](docs/audio.md) — MacBook CS8409 内置音频：主线只支持 Dell，靠 AUR 的 DKMS 补丁出声。
 - [`docs/ulanzi-au05.md`](docs/ulanzi-au05.md) — Ulanzi Vibe Key (AU05)：原始报文实测、固件 4 秒断连与 keepalive、语音键（F9）接 voxtype、麦克风优先级。

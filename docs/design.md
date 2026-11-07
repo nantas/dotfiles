@@ -39,6 +39,7 @@
 bootstrap/
 ├── arch.sh        Linux：装 chezmoi → clone 到 ~/bin/dotfiles → pacman/yay 装包（sudo）→ chezmoi init --apply
 ├── macos.sh       macOS：装 chezmoi → clone 到 ~/bin/dotfiles → brew 装包（无需 sudo）→ chezmoi init --apply
+├── debian.sh      Debian/Ubuntu：装 chezmoi → clone → apt 装终端包（sudo）→ chezmoi init --apply；`HEADLESS=1` 时写 `headless = true`
 └── windows.bat    Windows：装 chezmoi（winget→scoop）→ clone → scoop 装工具与字体 → 用户环境变量 → chezmoi init --apply
 ```
 
@@ -65,6 +66,13 @@ curl -fsSL https://raw.githubusercontent.com/jwu/dotfiles/main/bootstrap/windows
 macOS 那份的用法写 `bash -c` 而不是 `sh -c`：系统的 `/bin/sh` 是 POSIX 模式的 bash 3.2，
 不支持数组和 `local`，而脚本两者都用。同理它全文没有 bash 4 才有的 `&>` 重定向。
 
+`bootstrap/debian.sh` 是第四份，只装终端包：Debian 在这里是**无 GUI 的服务器**（阿里云
+ECS），桌面目标由 chezmoi.toml 里的 `[data] headless = true` 排除，而 `run_*` 里三个依赖
+waybar / niri / USB 设备的脚本在 headless 下短路。它与另外两份还有一处结构性差别：
+**Debian 没有 chezmoi 包，GitHub release 在这台机器上被墙**，所以它认 `CHEZMOI_BIN` 这个
+离线入口。实测数据、包名差异（`fdfind` / `batcat`）与逐条网络结论在
+[`ecs.md`](ecs.md)。
+
 `bootstrap/windows.bat` 是 Windows 对应物，起点是 `jwu/configs` 的
 「clone → `win/install.bat` → `win/config.bat` → 终端拉起 `init.bat`」。现在的分层完全不同：
 工具交给 scoop，字体由 scoop 以 per-user 方式装（于是**不需要管理员**），Clink 由终端执行
@@ -77,11 +85,13 @@ PowerShell 是为了和原来的 Windows 脚本层一致；批处理没有 `curl
 
 **Linux 与 macOS 的 bootstrap 是各自平台上唯一需要 root 或终端的脚本。** Linux 侧的 sudo
 动作：装 46 个包、yay 与 AUR 的 xwayland-satellite-git、`chsh`（走 PAM，同样需要终端）、TTY
-字体、drivetemp、mihomo 的 AUR 包与 drop-in 与面板、sudoers 的免密窗口（见下）。macOS 侧只有两处：`chsh`，以及首次把 Homebrew 的 zsh 加进 `/etc/shells`。
+字体、drivetemp、mihomo 的 AUR 包与 drop-in 与面板、Herdr UI 的 pacman 包（来自上游
+`install.sh`，它自己 `sudo pacman -U`，见 [`herdr.md`](herdr.md)）、sudoers 的免密窗口（见下）。macOS 侧只有两处：`chsh`，以及首次把 Homebrew 的 zsh 加进 `/etc/shells`。
 **Windows 侧不需要任何提权**：scoop 是 per-user 安装，字体 manifest 也写
 `%LOCALAPPDATA%\Microsoft\Windows\Fonts`，所以 `bootstrap/windows.bat` 与 `chezmoi apply`
 都既不需要管理员、也不需要终端。`run_*` 脚本只剩不需要 root 的部分——这正是 Oh My Zsh 与
-zsh-autosuggestions 在两侧都留在 `run_once_before_10`、而不进 bootstrap 的原因。
+zsh-autosuggestions 在两侧都留在 `run_once_before_10`、而不进 bootstrap 的原因，也是 Herdr
+daemon 留在 `run_onchange_before_14-herdr.sh.tmpl`、而 Herdr UI 在 Linux 进 bootstrap 的原因。
 
 这个切分是刻意的，而不是为了好看：sudo 的 `tty_tickets` 让凭据缓存按 TTY 隔离，非 TTY 的
 子进程无法输入密码；而 chezmoi 又会在任一 run 脚本失败时中止整个 apply。把 root 工作集中
@@ -921,7 +931,7 @@ home 目录文件，所以那几份文件原样留在家中，只是不再由 ch
 | 源 | 目标 | 说明 |
 | --- | --- | --- |
 | `private_dot_pi/private_agent/create_settings.json.tmpl` | `~/.pi/agent/settings.json` | `extensions` 按 `.chezmoi.os` 分支 |
-| `private_dot_pi/private_agent/create_mcp.json` | `~/.pi/agent/mcp.json` | 内置 MCP 的 server 定义。取本机现状：chrome-devtools 用 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent`，另有 `enabled: false` 的 `chrome-devtools-alt` 作 `--autoConnect` fallback |
+| `private_dot_pi/private_agent/create_mcp.json` | `~/.pi/agent/mcp.json` | 内置 MCP 的 server 定义。取本机现状：chrome-devtools 用 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent`；`blender` / `chrome-devtools` / `chrome-devtools-alt` / `rea` 全部 `enabled: false`，需要时从 `/mcp` 启用。每个启用的 server 在**每个会话**里都常驻一份，实测 rea 410M、chrome-devtools 250M、blender 100M，pi 本体 250M——多开几个会话就是几 G。`chrome-devtools-alt` 是 `--autoConnect` fallback，需要终端拿 Full Disk Access |
 
 `create_` 只在目标不存在时写一次，于是：
 

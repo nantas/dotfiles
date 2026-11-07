@@ -106,6 +106,14 @@ chezmoi apply -v
 
 `run_*` 脚本都幂等，重跑一遍是安全的。
 
+## `run_after_` 每次都跑，`status` 里恒有 `R`
+
+前缀决定触发时机：`run_onchange_` 只在内容变化时跑，`run_` / `run_after_` 每次 apply 都
+跑。所以 `chezmoi status` 第二列对 `run_after_55-pi-settings-sync.sh` 恒显示 `R`，
+`apply -v` 也每次都把脚本重写一遍（输出里有 `new file mode ... 55-pi-settings-sync.sh`）。
+这不是失败残留，不要为它去清 `scriptState`；幂等性只看文件层
+`chezmoi diff --include=files` 是否为空，以及第二次 apply 有没有文件改动。
+
 ## fail-fast
 
 任一 `run_*` 脚本失败会中止整个 apply，后面的脚本不再执行。所以平台不适合的脚本必须
@@ -143,6 +151,9 @@ sourceDir = "/Users/<user>/bin/dotfiles"
 | `~/.config/Thunar/uca.xml` | 还是 Thunar 自带的示例动作，且它会写回 |
 | `~/.config/godot/editor_settings-*.tres` | 编辑器设置，含窗口布局 |
 | `~/.config/warp-terminal/user_preferences.json` | Warp 自行重写 |
+| `~/.config/herdr/config-gpui.toml` | Herdr UI 每次启动刷新的全量默认值，文件头写明 DO NOT EDIT，见 `herdr.md` |
+| `~/.agents/skills/herdr-gpui-browser/` | Herdr UI 自动维护的 skill，文件头带 managed 标记 |
+| `~/.config/uv/uv-receipt.json` | uv 的 cargo-dist 安装器写的收据，含本机 `install_prefix` |
 
 `~/.config/chezmoi/chezmoi.toml` 也在这里：由 `bootstrap/<platform>` 写，见上一节。
 
@@ -158,6 +169,7 @@ sourceDir = "/Users/<user>/bin/dotfiles"
 | `~/.config/pulse/` | PulseAudio 的 `<machine-id>-runtime` cookie |
 | `~/.config/{btop,go,nautilus,systemd,yay}/` | 空目录，工具首次运行才填 |
 | `~/.config/comfy-cli/**` | `recent_workspace` 之类由 comfy-cli 写回，且含本机路径 |
+| `~/.config/herdr/*.log`、`*.sock*`、`*.lock`、`session.json`、`session-snapshots/`、`~/.local/state/herdr/` | herdr 的日志、socket、会话与窗口状态 |
 
 ### 构建产物 / 下载物
 
