@@ -193,7 +193,6 @@ chezmoi 依据权限位给源文件加前缀，所以**源路径与目标路径�
 | 源路径 | 目标 | 权限 |
 | --- | --- | --- |
 | `dot_config/fcitx5/private_profile` | `~/.config/fcitx5/profile` | 600 |
-| `private_dot_pi/private_agent/**` | `~/.pi/agent/**` | 700（目录） |
 | `private_Library/Rime/squirrel.custom.yaml` | `~/Library/Rime/squirrel.custom.yaml` | 700（目录） |
 | `private_Library/private_Application Support/PixPin/Config/PixPinConfig.json` | `~/Library/Application Support/PixPin/Config/PixPinConfig.json` | 700（目录，`Application Support` 一节也带前缀） |
 | `dot_config/waybar/scripts/executable_disk-temp.sh` | `~/.config/waybar/scripts/disk-temp.sh` | 755 |
@@ -299,102 +298,14 @@ git 先读 XDG 那份、再读 `~/.gitconfig`，后者覆盖前者，所以个�
 
 ## pi 的可变状态
 
-`~/.pi/agent/` 下的文件分三类：
+chezmoi **不再管理 `~/.pi/agent/` 下的任何文件**：pi 的 agents / skills / prompts /
+settings / mcp 等配置由各机器自行维护。早期曾用 `private_dot_pi/` 源目录 + `create_`
+前缀 + `run_after_55` 字段级同步来管理，已整体移除，避免 apply 覆盖各机器自己的配置。
 
-| 类型 | 文件 | 处置 |
-| --- | --- | --- |
-| 静态资源（pi 只读） | `agents/`、`skills/`、`prompts/`、`themes/` | **已纳入**，源是真源 |
-| 人工维护的配置 | `keybindings.json`、`APPEND_SYSTEM.md` | **已纳入**，源是真源 |
-| 会被 pi 回写 | `settings.json`、`mcp.json` | **已纳入**：`create_` 打底，`settings.json` 的托管键再由 `run_after_` 脚本同步 |
-| 设置面板会回写 | `extensions/*.json`（pi-ask、pi-animations） | **已纳入**，源是真源；只有改设置时才被写回 |
-| 凭据与运行时 | `auth.json`、`sessions/`、`models-store.json`、`*-cache.json`、`install/`、`bin/`、`npm/` | **绝不纳入** |
-
-`settings.json` 会被 pi 写入 `lastChangelogVersion`（看过哪版 changelog）、
-`defaultProvider` / `defaultModel` / `defaultThinkingLevel`（`/model` 切换），`mcp.json` 会被
-`/mcp` 改写（改 exposure 或启用、禁用 server 时，写回的是定义该 server 的那份文件）。这两份用
-`create_` 前缀：**只在目标不存在时**渲染一次，之后不再碰。新机器因此
-拿到一份能开箱用的配置，本机后来被 pi 改成什么样，都不会在下次 apply 时被抹掉。
-
-代价是源与磁盘会漂移，所以跨机器必须一致的那几个键另走一条**字段级**通道：
-`run_after_55-pi-settings-sync.sh.tmpl` 每次 apply 渲染 `create_settings.json.tmpl`，把
-`$schema`、`extensions`、`packages`、`defaultTools`、`theme`、`tuiMode`、`quietStartup`、
-`enableInstallTelemetry`、`defaultProjectTrust`、`hideThinkingBlock` 合并进已存在的文件，
-其余键（`defaultProvider` / `defaultModel` / `defaultThinkingLevel` / `lastChangelogVersion`，
-以及 pi 或扩展以后新加的任何键）原样保留。合并是幂等的：内容一致就不写盘，所以既不在
-mtime 上与 pi 抢文件，也不留下非空的 `chezmoi diff`。
-
-`$schema` 是 pi 发布的编辑器校验入口：`settings.json`、`keybindings.json` 与主题各有一份
-`https://pi.dev/schemas/*.schema.json`（与 npm 包内 `schemas/` 逐字节一致）。
-`settings.json` 把 `$schema` 列进托管键，是为了让已有机器也拿到——`create_` 只在目标不存在时
-渲染。`keybindings.json` 与 `themes/one-dark.json` 是纯真源，直接写在源里即可；后者原先指向
-`raw.githubusercontent.com` 的源文件路径，上游搬家后那个 URL 已经 404。
-`mcp.json` 没有 schema（`pi.dev/schemas/mcp.schema.json` 是 404），`extensions/*.json` 的
-schema 归各扩展自己（pi-ask 是 `src/config/schema.ts` 里的 zod），两者都不加。
-`models.json` 含 per-provider 的 `apiKey`，按「绝不纳入」处理，它的 `$schema` 只存在本机那份。
-
-为什么不整份当纯真源管：那样 `/model` 切一次模型、pi 读一次 changelog，都会变成 apply 要撤销的
-差异。为什么不用 chezmoi 的 `modify_` 目标类型：它要求脚本在 Windows 上也能执行，而这份源是
-Linux / macOS / Windows 共用一份（见「脚本层」）。
-
-非托管键的取值仍是**新机器的初始值**：`create_settings.json.tmpl` 的 `defaultProvider` /
-`defaultModel` / `defaultThinkingLevel` 给新机器一个 deepseek 起点，之后跟着 `/model` 走。
-`extensions` 按 `.chezmoi.os` 渲染：Unix 是 `~/bin/pi-config/extensions`，Windows 是
-`c:/bin/pi-config/extensions`（pi 会展开 `~`，见 `dist/utils/paths.js` 的 `expandTilde`）。
-内置 MCP 保持启用：`pi-mcp-adapter` 退役后 `/mcp` 归内核，server 定义落在
-`~/.pi/agent/mcp.json`（源 `create_mcp.json`），依据见 pi 文档 `mcp.md`。`extensions` 与
-`packages` 都是托管键的一部分，所以这条迁移对已有机器同样生效。细节见「pi-mcp-adapter
-退役，改用内置 MCP」。
-
-`packages` 自 2026-09-30 起是**托管键**，源里的列表就是每台机器上的列表：源里存的是 npm
-包名（`npm:@johnnywu/pi-filechanges` …），所以 macOS 那台开发机原先手工换成的 `~/dev/jwu/*`
-本地路径会被下一次 apply 覆盖回包名版；要保住本地路径，得把它们写进源（例如像 `extensions`
-那样按 `.chezmoi.os` 分支），不能只写在一台机器上。出于同样的原因，在 pi 里临时 `pi install`
-的包会在下次 apply 时被源列表重排或删掉，想长期保留就得写进源。
-
-`extensions/` 下的两份配置（`eko24ive-pi-ask.json`、`pi-tui-animations.json`）按真源纳入，与
-上面那组 `create_` 刻意不同：它们**只**在用户主动改设置时被回写——pi-ask 在 `/ask-settings`
-里切换开关，pi-animations 在其设置命令里 `persistConfig()`——不是 pi 每次会话都写，所以
-`apply` 不会持续和扩展抢同一份文件。代价是改过一次设置就会留下非空的 `chezmoi diff`，走
-`/collect` 回收即可。这两份先前按「排除」处理（诱因是 `pi-config` 的
-`"pi-ask: sync config back to schemaVersion 5"` 提交那次写回），2026-09 起改为按真源纳入。
-
-`packages` 里的 `@johnnywu/pi-ask` 是上游 `@eko24ive/pi-ask` 的本地 fork（仓库在
-`~/dev/pi-ask`），加了 `alt+a` 折叠 ask 面板等改动。fork 里的 `getAskConfigPath()` 有意
-保留 `eko24ive-pi-ask.json` 这个旧文件名：改名会让已有键位配置失联，也会多一处上游同步
-冲突。上游有更新时在 `~/dev/pi-ask` 里 `git fetch upstream && git rebase upstream/main`，
-再升版本发布到 npm，新机器就装到新版。
-
-`@johnnywu/pi-image-gen` 不同：它没有上游，就是本仓库作者写的扩展，仓库在
-`~/dev/pi-image-gen`。本机原先写的是本地路径，2026-10-01 起改为按包名入源，那份本地路径
-会在下一次 apply 时被同步脚本覆盖成 `npm:@johnnywu/pi-image-gen`。
-
-### 项目级：仓库根的 `.pi/`
-
-仓库根的 `.pi/` 是 pi 的**项目级**配置，只在把本仓库当工作目录时加载，不进 home 目录，
-与上面那份 `~/.pi/agent/` 是两套互不相干的东西。它放两个方向相反的命令：
-
-- `prompts/apply.md` —— `/apply`，源 → home 目录：先把本地源同步到 `origin`，`diff` 比对 →
-  等确认 → `apply`，跑两次验证 no-op
-- `prompts/collect.md` —— `/collect`，home 目录 → 源：把 home 目录侧的改动回收进仓库
-
-`/apply` 比对前先 `git fetch --prune origin` 并同步：这仓库同时驱动多台机器，落在过期基线
-上的提交会变成分叉。能快进走 `--ff-only`，分叉走 `--rebase`，任何冲突都**中止整个命令**，
-要求先把 git 解决干净——不带着冲突去 `apply`。`/collect` 不参与这一步。两个命令都刻意不含
-提交动作，提交仍由人显式跑 `/commit`；它们也都不负责**入库**（把会话谈定的改动写进源），
-入库仍然是在会话里直接编辑源文件。
-
-`/collect` 的判据是 `chezmoi status` 的**第一列**——它表示 home 目录相对 chezmoi 上次写入的
-差异，所以第一列非空即 home 目录侧漂移（`/apply` 的活），第一列为空、第二列为 `M` 才是源侧
-改动。回收靠 `chezmoi re-add`，它自己会跳过模板，`create_` 文件连 `status` 都不显示，
-构建产物（`~/.local/bin` 下那类）也不是受管目标，因此手工要做的只剩两件：把模板漂移
-**语义合并**回模板（而不是把渲染结果整份写进去），以及判断 home 目录里未被管理的新配置
-要不要纳入。
-
-它不需要在 `.chezmoiignore` 里排除：chezmoi 本来就忽略源目录里以点开头的条目。反过来，
-往那里加 `.pi` 是错的——`.chezmoiignore` 匹配目标路径，加进去会连 `~/.pi` 一起踢出管理
-范围。见 [`chezmoi-notes.md`](chezmoi-notes.md)。
-
-项目级配置要等 project trust 授予之后才加载，所以首次用到 `/apply` 的机器要先信任本仓库。
+本仓库只保留两条与 pi 相关、但不触碰其配置的通道：
+`run_once_after_50-pi-config.sh.tmpl` 安装 pi CLI 并 clone pi-config 仓库；
+`run_after_52-herdr-pi-integration.sh.tmpl` 让 herdr 的 pi 状态检测扩展保持最新。
+凭据（`auth.json`）、sessions 与扩展包检出同样只留在本机。
 
 ## fcitx5 的运行时边界
 
@@ -522,12 +433,6 @@ chezmoi 官方文档和本机 `scriptState` 都不符——`run_once_` 同样会
 前缀可组合，如 `run_once_after_foo.sh`、`run_onchange_after_bar.sh`。**没有合法前缀的
 `.sh` 文件会被当成目标文件在 home 目录创建**（实测：`badprefix_test-c.sh` 被创建成
 `~/badprefix_test-c.sh`），所以所有动作脚本必须带前缀。
-
-`run_after_55-pi-settings-sync.sh.tmpl` 是目前唯一的 `run_`（每次 apply 都跑）实例，它不部署
-文件，而是把托管键合并进 `create_` 目标 `~/.pi/agent/settings.json`（见「pi 的可变状态」）。
-选 `run_` 而不是 `run_onchange_`：`run_onchange_` 只按**脚本自身内容**记账，而这个脚本的值来自
-它渲染的模板，模板改了脚本内容不变，就不会重跑。跑十次与跑一次等价是它自己的性质——没有
-差异就不写盘。
 
 从两个退役仓库迁入的动作：
 
@@ -930,8 +835,6 @@ home 目录文件，所以那几份文件原样留在家中，只是不再由 ch
 
 | 源 | 目标 | 说明 |
 | --- | --- | --- |
-| `private_dot_pi/private_agent/create_settings.json.tmpl` | `~/.pi/agent/settings.json` | `extensions` 按 `.chezmoi.os` 分支 |
-| `private_dot_pi/private_agent/create_mcp.json` | `~/.pi/agent/mcp.json` | 内置 MCP 的 server 定义。取本机现状：chrome-devtools 用 `--wsEndpoint ws://127.0.0.1:9222/devtools/browser/pi-agent`；`blender` / `chrome-devtools` / `chrome-devtools-alt` / `rea` 全部 `enabled: false`，需要时从 `/mcp` 启用。每个启用的 server 在**每个会话**里都常驻一份，实测 rea 410M、chrome-devtools 250M、blender 100M，pi 本体 250M——多开几个会话就是几 G。`chrome-devtools-alt` 是 `--autoConnect` fallback，需要终端拿 Full Disk Access |
 
 `create_` 只在目标不存在时写一次，于是：
 
@@ -954,6 +857,8 @@ home 目录文件，所以那几份文件原样留在家中，只是不再由 ch
   迁移时要么手工改这一行，要么删掉该文件让模板按 `c:/bin/pi-config/extensions` 重写。
 
 ### settings.json 的托管键同步（2026-09-30）
+
+> 已失效：pi 配置改为各机器自管后，`run_after_55` 与 `create_` 目标一并移除，见「pi 的可变状态」。以下为当时的设计记录。
 
 `create_` 只打底、不改已有机器，于是源里 `defaultTools` / `packages` 的改动传不到本机。
 现在把跨机器一致的九个键交给 `run_after_55-pi-settings-sync.sh.tmpl`：它渲染

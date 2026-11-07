@@ -2,7 +2,7 @@
 #!/bin/bash
 # herdr reports agent state (working / waiting / idle) in its pane list through a
 # per-agent integration. For pi it is an extension herdr writes into
-# ~/.pi/agent/extensions/, the directory chezmoi already populates. The file is
+# ~/.pi/agent/extensions/, which pi itself creates on first run. The file is
 # versioned and owned by herdr (HERDR_INTEGRATION_VERSION, rewritten on every
 # install), so it stays out of the source tree and is installed here instead.
 # Runs on every apply so a 'herdr update' that bumps the integration version, a
@@ -22,7 +22,7 @@ fi
 
 if [ ! -d "$PI_EXT_DIR" ]; then
   # herdr refuses to install without it ("install pi first"), and the directory
-  # only exists after the pi source tree has been applied.
+  # only exists after pi has been run once on this machine.
   echo "    herdr: $PI_EXT_DIR is missing; pi integration skipped" >&2
   exit 0
 fi

@@ -1,6 +1,0 @@
-{
-  "$schema": "https://pi.dev/schemas/keybindings.schema.json",
-  "app.clipboard.pasteImage": "ctrl+shift+v",
-  "tui.altScreen.search": "ctrl+f",
-  "tui.editor.cursorWordRight": ["alt+right", "ctrl+right"]
-}

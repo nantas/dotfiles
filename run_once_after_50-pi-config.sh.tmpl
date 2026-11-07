@@ -3,8 +3,8 @@
 # pi CLI plus the pi-config checkout.
 #
 # pi-config stays a separate repository because `extensions/` is loaded live
-# from the checkout, so the clone target is fixed: settings.json (a chezmoi
-# create_ target) points at ~/bin/pi-config/extensions.
+# from the checkout, so the clone target is fixed: the machine-local
+# settings.json points at ~/bin/pi-config/extensions.
 # See docs/design.md, the pi-config orchestration section.
 set -uo pipefail
 

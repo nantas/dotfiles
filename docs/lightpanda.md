@@ -106,8 +106,7 @@ lightpanda 撞上会 `fatal: address already in use`。
 }
 ```
 
-- **源**（`private_dot_pi/private_agent/create_mcp.json`）决定新机器拿到什么。
-- **本机**（`~/.pi/agent/mcp.json`）必须手工同步或用 `pi mcp add`，`chezmoi apply` 不会碰它。
+- **本机**（`~/.pi/agent/mcp.json`）由各机器自管（chezmoi 已不管理 pi 配置），用 `pi mcp add` 或手工编辑。
 
 `pi mcp add` 也能写，但它用自己那条 `JSON.stringify` 路径重排格式（把 `"args": ["blender-mcp"]`
 展开成三行）。源里统一用行内短数组，手工对齐比事后收拾更省事。

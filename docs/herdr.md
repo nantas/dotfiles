@@ -51,9 +51,8 @@ chezmoi 托管同名文件只会和上游版本打架。改为由 `run_after_52-
 `herdr integration uninstall pi`、文件被删，都在下一次 apply 自愈。
 
 顺序有意义：`herdr integration install` 要求 `~/.pi/agent/extensions/` 已经存在（否则报
-`pi extension directory not found ... install pi first`），而那个目录由 chezmoi 从
-`private_dot_pi/private_agent/extensions/` 铺出来。所以脚本是 `after_` 而不是 `before_14`，
-编号排在 `run_once_after_50-pi-config.sh.tmpl` 之后。
+`pi extension directory not found ... install pi first`），而那个目录由 pi 首次运行创建（pi 配置已不再由 chezmoi 管理）。脚本保持 `after_`，
+编号排在 `run_once_after_50-pi-config.sh.tmpl` 之后；目录不存在时本次集成跳过。
 
 本仓库只管 pi：claude / codex / opencode 的集成在这台机器上是 `herdr` 自己装上的，它们的
 配置也不归这里管。手工查看：`herdr integration status`；只想看落后的：

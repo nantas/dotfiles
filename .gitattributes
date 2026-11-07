@@ -9,7 +9,6 @@
 # @johnnywu/pi-subagents parses agent frontmatter with a literal '---\n' check
 # and never normalizes CRLF, so autocrlf=true would break every subagent
 # definition on Windows. pi core normalizes it; that loader does not.
-private_dot_pi/private_agent/**/*.md text eol=lf
 
 # Clink's Lua and ini are not batch files: pin LF so autocrlf cannot flip the
 # working tree after every checkout, which made chezmoi rewrite them unchanged.

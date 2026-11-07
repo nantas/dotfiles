@@ -141,8 +141,6 @@ dotfiles/
 - 严禁为了「整齐」去翻译用户可见的字符串：`dot_config/waybar/**` 的 `format` /
   `tooltip-format`、`gpu-watch.c` 的 `emit_off()` 消息、`update-rime-dict.sh` 的 `--help`、
   图标里的「中」字、Rime 的选项名。改这些就改了用户看到的东西。
-- `private_dot_pi/private_agent/{agents,skills,prompts}/**` 是 pi 的提示词内容，不是注释，
-  不要按注释规范去动它。
 
 ### Linux 图形应用入口
 

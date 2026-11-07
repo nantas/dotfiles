@@ -43,8 +43,8 @@ fcitx5 / Ghostty / Alacritty，只留 zsh、starship、zoxide、fzf、Neovim、g
 
 ### 四台共用
 
-pi 的 agent 配置（`agents` / `skills` / `prompts` / `themes` / 键位）、git 的公共设置
-（delta、OneHalfDark、`gh` 凭据助手）、FiraMono Nerd Font 与 One Dark 配色。
+git 的公共设置（delta、OneHalfDark、`gh` 凭据助手）、FiraMono Nerd Font 与 One Dark 配色。
+pi 的 agent 配置不纳入本仓库，由各机器自行管理。
 
 ---
 

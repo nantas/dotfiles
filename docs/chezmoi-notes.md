@@ -13,7 +13,7 @@ chezmoi 忽略源目录中名字以 `.` 开头的条目（`.chezmoi*` 系列除�
 `.pi/` 这类目录既不会被部署，也不会出现在 `chezmoi managed` 里。
 
 推论：**不要**为了「排除」它而往 `.chezmoiignore` 里写 `.pi`。那一行匹配的是目标路径，
-排除掉的是 home 目录的 `~/.pi`（那份真源在 `private_dot_pi/`），等于凭空卸掉一整套 pi 配置。
+会排除 home 目录的 `~/.pi`；该目录由各机器自管，源侧无需任何排除。
 
 ## 排除要双向做
 
@@ -83,11 +83,6 @@ sed 's/\.chezmoi\.os/"linux"/' dot_zshrc.tmpl | chezmoi execute-template  # 另�
 - 源与磁盘会静默漂移，`chezmoi diff --include=files` 为 0 **不代表**目标内容等于源。
 - 改源里的这类文件不会传到已有机器，得手工同步。
 
-**字段级例外**：`~/.pi/agent/settings.json` 里跨机器必须一致的那几个键（扩展源、包列表、
-`defaultTools` 与启动观感）由 `run_after_55-pi-settings-sync.sh.tmpl` 在每次 apply 时合并进
-已有文件，其余键不动、无差异不写盘，于是那部分改源即生效。清单与取舍见 `design.md` 的
-「pi 的可变状态」。
-
 ## git 不记录目录权限
 
 所以 home 目录上的 `0700` / `0600` 除了写进源文件名（`private_` 前缀）没有别处可以
@@ -109,8 +104,8 @@ chezmoi apply -v
 ## `run_after_` 每次都跑，`status` 里恒有 `R`
 
 前缀决定触发时机：`run_onchange_` 只在内容变化时跑，`run_` / `run_after_` 每次 apply 都
-跑。所以 `chezmoi status` 第二列对 `run_after_55-pi-settings-sync.sh` 恒显示 `R`，
-`apply -v` 也每次都把脚本重写一遍（输出里有 `new file mode ... 55-pi-settings-sync.sh`）。
+跑。所以 `chezmoi status` 第二列对 `run_after_52-herdr-pi-integration.sh` 恒显示 `R`，
+`apply -v` 也每次都把脚本重写一遍（输出里有 `new file mode ... 52-herdr-pi-integration.sh`）。
 这不是失败残留，不要为它去清 `scriptState`；幂等性只看文件层
 `chezmoi diff --include=files` 是否为空，以及第二次 apply 有没有文件改动。
 
