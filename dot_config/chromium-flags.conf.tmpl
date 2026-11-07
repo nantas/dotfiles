@@ -1,3 +1,6 @@
-# Use the local Mihomo service and bypass private networks.
+{{ if (default true (index . "localProxy")) -}}
+# Use the local Mihomo service; hosts behind a router-level proxy set
+# localProxy=false in chezmoi data to skip this.
 --proxy-server=http://127.0.0.1:7890
 --proxy-bypass-list=localhost;127.0.0.1;[::1];10.0.0.0/8;172.16.0.0/12;192.168.0.0/16;169.254.0.0/16;*.local;<local>{{ range (default (list) (index . "browserProxyBypass")) }};{{ . }}{{ end }}
+{{ end -}}
