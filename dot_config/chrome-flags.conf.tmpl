@@ -1,6 +1,6 @@
-{{ if (default true (index . "localProxy")) -}}
+{{ if not (default false (index . "routerProxy")) -}}
 # Route Chrome through the local mihomo mixed-port; hosts behind a router-level
-# proxy set localProxy=false in chezmoi data to skip this. See docs/chrome.md.
+# proxy set routerProxy=true in chezmoi data to skip this. See docs/chrome.md.
 --proxy-server=http://127.0.0.1:7890
 --proxy-bypass-list=localhost;127.0.0.1;[::1];10.0.0.0/8;172.16.0.0/12;192.168.0.0/16;169.254.0.0/16;*.local;<local>{{ range (default (list) (index . "browserProxyBypass")) }};{{ . }}{{ end }}
 {{ end -}}
