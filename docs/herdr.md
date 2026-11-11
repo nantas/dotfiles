@@ -156,7 +156,7 @@ chezmoi execute-template < run_after_16-herdr-mods.sh.tmpl | bash
   "zoom": 1,
   "sounds": { "enabled": true },
   "font": "FiraMono Nerd Font",
-  "font_size": 16,
+  "font_size": 15,
   "font_ligatures": false,
   "ui_font": "PingFang SC",
   "minimum_contrast": 1,
@@ -231,7 +231,7 @@ clone 的 layout 决定外观。`shared.json` 的 `layout`（当前用哪份）�
 | 键 | macOS | Linux | Windows |
 | --- | --- | --- | --- |
 | `font` | FiraMono Nerd Font | FiraMono Nerd Font | FiraMono Nerd Font |
-| `font_size` | 16 | 18（Ghostty 13.5pt @96dpi） | 16 |
+| `font_size` | 15 | 18（Ghostty 13.5pt @96dpi） | 16 |
 | `ui_font` | PingFang SC | Noto Sans CJK SC | Microsoft YaHei UI |
 
 `ui_font` 是 mods 画字用的字体，取的是 Obsidian 的界面字体：它的
@@ -242,8 +242,9 @@ Windows。Linux 上的 `Noto Sans CJK SC` 又被本机 `fonts.conf` 重定向成
 `Sarasa Gothic SC`（比例字体，见 `docs/fontconfig.md`），所以面板里的英文也不再是等宽。
 
 herdr 的 `ui_font` 能接受逗号链（实测第一项生效），但平台已经分开，就没必要写整条。
-macOS 那套沿用这台 Mac 的 Ghostty：`font-size = 16`、中文 `PingFang SC`（见
-`dot_config/ghostty/config`）。Windows 上模板只把面板字体换成 `Microsoft YaHei UI`，字号沿用
+macOS 面板字体仍是 Ghostty 的 `PingFang SC`（见 `dot_config/ghostty/config`）。终端字号不跟
+Ghostty 的 16：app 里定成 15 后写回了源，免得下次 apply 盖回去。
+Windows 上模板只把面板字体换成 `Microsoft YaHei UI`，字号沿用
 默认 16；herdr-app 在那台机器上没有实测过，等做到 Windows 时再对。
 
 ## 验证

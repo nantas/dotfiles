@@ -6,12 +6,15 @@ Fonts follow the machine: the UI text takes the same face as Obsidian's
 interface font on each platform (PingFang SC, Noto Sans CJK SC, Microsoft
 YaHei UI); herdr-app has not been measured on Windows yet. Terminals stay
 FiraMono Nerd Font, at Ghostty's 18px em (13.5pt at 96dpi) on Linux.
+macOS is 15, copied back from the app so the next apply does not restore 16.
 */ -}}
 {{- $fontSize := 16 -}}
 {{- $uiFont := "PingFang SC" -}}
 {{- if eq .chezmoi.os "linux" -}}
 {{- $fontSize = 18 -}}
 {{- $uiFont = "Noto Sans CJK SC" -}}
+{{- else if eq .chezmoi.os "darwin" -}}
+{{- $fontSize = 15 -}}
 {{- else if eq .chezmoi.os "windows" -}}
 {{- $uiFont = "Microsoft YaHei UI" -}}
 {{- end -}}
