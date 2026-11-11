@@ -157,6 +157,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/alacritty.md`](docs/alacritty.md) — Alacritty 与 Ghostty 的逐项对齐，以及 Wayland 下的窗口装饰。
 - [`docs/shell.md`](docs/shell.md) — zsh 配置里的两个坑：nvm 的两种装法与 Apple Silicon 的 MPS 变量。
 - [`docs/dev-env.md`](docs/dev-env.md) — 开发运行时（rustup / nvm + Node / uv / bun）的落点与取舍：为什么 per-user 而不是 pacman、installer 改写 shell 配置的坑、「缺失才装」的判据。
+- [`docs/ports.md`](docs/ports.md) — 端口 → 进程：`killport` 为什么胜过 `fuser -k`、Linux 侧为什么只能 `cargo install`、`--dry-run` 与退出码 2 的用法。
 - [`docs/pi-webfetch.md`](docs/pi-webfetch.md) — webfetch 三个外部 CLI 的落点：`scrapling` 为什么走 `uv tool`、上游 `scrapling install` 在 Arch 上必失败的原因、`[shell]` 与 `[fetchers]` 的区别。
 - [`docs/lightpanda.md`](docs/lightpanda.md) — 原生 headless 浏览器接进 pi 的内置 MCP：实测耗时、markdown 不抽正文的边界、CDP 与 `create_` 目标的同步方式。
 - [`docs/windows-shell.md`](docs/windows-shell.md) — Windows 的 shell 层：scoop、Clink 的 `session.cmd` 接线、用户环境变量、批处理必须 CRLF。
@@ -172,7 +173,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/ghostty-gl-version.md`](docs/ghostty-gl-version.md) — Intel HD 4000 上保住硬件渲染的 MESA override。
 - [`docs/gtk4.md`](docs/gtk4.md) — GTK4 全局 CSD 直角微调。
 - [`docs/fontconfig.md`](docs/fontconfig.md) — 字体渲染参数与中文回退：对齐 Ghostty 的 FreeType 默认、`hintstyle` 的取舍、为什么只能用 family 名改字体。
-- [`docs/herdr.md`](docs/herdr.md) — Herdr 与 Herdr UI：三平台的官方安装方式与落层（daemon 走 `run_*`、Linux 的 UI 走 `bootstrap/`）、两个二进制的配置分工、macOS / Linux 两套字体值的分派、四个字体 section 的能力差异、fontdb 的 nameID 16 规则、为什么 fontconfig 对它不生效。
+- [`docs/herdr.md`](docs/herdr.md) — Herdr app 与 herdr-core：三平台安装与落层（macOS cask、Linux `run_onchange`、Windows `bootstrap`）、`settings.json` 与 `themes/*.json` 的主题机制、源里 clone 一份 `terminals` 来统一配色、三平台字体分派、主题选择器为什么盖过源里的 `theme`、sidebar mods 的真源在自有仓库而版本放在 `.chezmoidata.toml`（bash 与 PowerShell 两份 `run_after` 都读它）、`shared.json` 不托管却由脚本首次补一次 layout，以及 Herdr 1 / Sheprd 已在 2026-11 卸载的历史。
 - [`docs/tailscale.md`](docs/tailscale.md) — Tailscale 为什么没有配置文件可纳管、装机与策略各落哪一层、为什么一律关掉 Tailscale SSH（Tailworm 报告）、对称 NAT 与 DERP 的实测延迟。
 - [`docs/bluetooth.md`](docs/bluetooth.md) — BlueZ OBEX agent 单槽位与冲突诊断。
 - [`docs/audio.md`](docs/audio.md) — MacBook CS8409 内置音频：主线只支持 Dell，靠 AUR 的 DKMS 补丁出声。

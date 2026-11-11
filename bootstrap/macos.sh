@@ -34,8 +34,14 @@ PACKAGES=(
   "fd"
   "bat"
   "git-delta"
+  # Review-first diff viewer. Packaged for all three platforms here, so it needs
+  # no per-user installer; see https://hunk.dev.
+  "hunk"
   "jq"
   "just"
+  # Port-to-process lookup and kill. Linux has no package for it and builds the
+  # crate instead; see docs/ports.md.
+  "killport"
   "cocogitto"
   "yazi"
   "gitui"
@@ -57,11 +63,9 @@ CASKS=(
   # Its config is a managed target, so the app has to exist on a new machine.
   # See docs/pixpin.md.
   "pixpin"
-  # Herdr UI's fonts and theme are managed targets as well. Upstream's own cask,
-  # in its own tap, so the fully qualified name is the install command. The
-  # `herdr` daemon is a separate program, installed by
-  # run_onchange_before_14-herdr.sh.tmpl. See docs/herdr.md.
-  "penso/tap/herdr-gpui"
+  # Herdr app is the newer window on herdr-core. The
+  # upstream cask is arm64-only, so an Intel Mac has to build it from source.
+  "herdr-app"
   # Only the app is provisioned: joining a tailnet is an interactive browser
   # login, and the login item is registered by the app itself, not by this
   # script. See docs/tailscale.md.
@@ -247,7 +251,7 @@ step_required "clone/update dotfiles" ensure_repo
 step_required "configure chezmoi sourceDir" write_chezmoi_config
 
 step "Homebrew formulae" install_formulae
-step "Homebrew casks (Neovide, Input Source Pro, FiraMono Nerd Font, PixPin, Herdr UI)" install_casks
+step "Homebrew casks (Neovide, Input Source Pro, FiraMono Nerd Font, PixPin, Herdr app)" install_casks
 step "default shell (zsh)" set_default_shell
 
 step_required "chezmoi init --apply" chezmoi init --apply

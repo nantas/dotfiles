@@ -223,7 +223,7 @@ install_packages() {
   return 1
 }
 
-# yay: the AUR helper used for xwayland-satellite-git. yay-bin ships a prebuilt
+# yay: the AUR helper used by the AUR steps below. yay-bin ships a prebuilt
 # x86_64 binary, so bootstrapping the helper needs no Go/Rust toolchain and no
 # long compile. This has to run before install_xwayland_satellite(), which skips
 # itself when no helper is on PATH.
@@ -278,19 +278,21 @@ install_xwayland_satellite() {
   yay -S --needed --noconfirm "$XWS_AUR_PKG" || return 1
 }
 
-# Herdr UI, the native GPUI client for the herdr daemon. Upstream ships no
-# pacman package: its installer picks the Arch package for this architecture,
-# checks it against the release's published SHA-256, and installs it with sudo,
-# so it cannot live in a run_ script. Updates afterwards come from the app's own
-# App Updates panel, which drives pacman through PolicyKit. The daemon itself is
-# root-free and installed by run_onchange_before_14-herdr.sh.tmpl; see
-# docs/herdr.md.
-install_herdr_ui() {
-  if command -v herdr-gpui &> /dev/null; then
-    echo "    Already installed: $(command -v herdr-gpui)"
+# Review-first diff viewer. Only the AUR carries it on Arch: `hunk-bin` is the
+# upstream prebuilt release, while `hunk` is a source build that needs bun from
+# the per-user dev runtimes. See https://hunk.dev.
+install_hunk() {
+  # Probe the package, not `command -v`: upstream's curl installer drops a
+  # binary in ~/.hunk/bin that would make this skip the pacman install.
+  if pacman -Q hunk-bin &> /dev/null; then
+    echo "    Already installed: $(pacman -Q hunk-bin)"
     return 0
   fi
-  sh -c "$(curl -fsSL https://herdrui.dev/install.sh)" || return 1
+  if ! command -v yay &> /dev/null; then
+    echo "    yay is required for hunk-bin; skipping" >&2
+    return 1
+  fi
+  yay -S --needed --noconfirm hunk-bin || return 1
 }
 
 # chsh rejects an empty -s argument with "shell must be a full path name", which
@@ -357,6 +359,15 @@ Defaults timestamp_timeout=15'
 # cmdline. See docs/suspend.md.
 install_apple_suspend_fix() {
   sudo "$SRC_DIR/scripts/apple-macbook-suspend-fix.sh"
+}
+
+# applespi can come out of resume parsing the multitouch-init reply as touchpad
+# data, after which it drops every packet as corrupted and the touchpad stays
+# dead until the driver is re-probed. This installs a systemd-sleep hook that
+# rebinds it after resume (plus the `applespi-reset` helper for manual use).
+# Skipped when applespi is not loaded. See docs/suspend.md.
+install_applespi_resume_fix() {
+  sudo "$SRC_DIR/scripts/applespi-resume-fix.sh"
 }
 
 # mihomo ships as an AUR package, but two things around it are local policy: the
@@ -507,14 +518,15 @@ step_required "configure chezmoi sourceDir" write_chezmoi_config
 
 step "pacman packages" install_packages
 step "tailscale service (Tailscale SSH kept off)" install_tailscale
-step "yay (AUR helper for xwayland-satellite-git)" ensure_yay
+step "yay (AUR helper)" ensure_yay
 step "xwayland-satellite-git (AUR)" install_xwayland_satellite
-step "Herdr UI (native client for herdr)" install_herdr_ui
+step "hunk (AUR)" install_hunk
 step "default shell (zsh)" set_default_shell
 step "TTY font (vconsole)" set_tty_font
 step "drivetemp module" load_drivetemp
 step "passwordless sudo window for unattended tooling" install_sudo_window
 step "Alpine Ridge fix + lid lock (T1 MacBook Pro)" install_apple_suspend_fix
+step "applespi resume hook (Apple SPI touchpad)" install_applespi_resume_fix
 step "mihomo (kernel + geodata)" install_mihomo
 step "mihomo service overrides" install_mihomo_overlay
 step "enable mihomo" enable_mihomo

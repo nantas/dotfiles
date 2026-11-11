@@ -1,0 +1,7 @@
+# Template data shared by every platform. Special file: never applied to $HOME.
+
+[herdr]
+# Ref of jwu/herdr-sidebar-mods every machine installs on each apply: `main`
+# keeps them on the latest push, a SHA pins one. Both the bash and the
+# PowerShell installer read it. See docs/herdr.md.
+sidebarModsRev = "main"

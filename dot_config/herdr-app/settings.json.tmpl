@@ -1,0 +1,30 @@
+{{- /*
+Herdr app's own settings. Written by the app's Settings window too, so a change
+made there must be copied back here. See docs/herdr.md.
+
+Fonts follow the machine: the UI text takes the same face as Obsidian's
+interface font on each platform (PingFang SC, Noto Sans CJK SC, Microsoft
+YaHei UI); herdr-app has not been measured on Windows yet. Terminals stay
+FiraMono Nerd Font, at Ghostty's 18px em (13.5pt at 96dpi) on Linux.
+*/ -}}
+{{- $fontSize := 16 -}}
+{{- $uiFont := "PingFang SC" -}}
+{{- if eq .chezmoi.os "linux" -}}
+{{- $fontSize = 18 -}}
+{{- $uiFont = "Noto Sans CJK SC" -}}
+{{- else if eq .chezmoi.os "windows" -}}
+{{- $uiFont = "Microsoft YaHei UI" -}}
+{{- end -}}
+{
+  "zoom": 1,
+  "sounds": {
+    "enabled": true
+  },
+  "font": "FiraMono Nerd Font",
+  "font_size": {{ $fontSize }},
+  "font_ligatures": false,
+  "ui_font": "{{ $uiFont }}",
+  "minimum_contrast": 1,
+  "appearance": "dark",
+  "theme": "one-half-dark"
+}
