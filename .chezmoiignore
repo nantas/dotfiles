@@ -53,6 +53,7 @@ Library
 .config/nvim
 .config/yazi
 .config/zed
+.config/herdr-core
 {{ end }}
 
 # Linux-only targets. They are the source of truth on Linux, but hyprland /

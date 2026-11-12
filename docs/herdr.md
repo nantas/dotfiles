@@ -7,14 +7,26 @@
 | `herdr-core` | 上游发布，装进 `~/.local/share/herdr-core/versions/<hash>/`、`current` 指过去；命令 `herdr-core` 与 `hc` | daemon + CLI：会话、pane、agent 检测 | 自己就是 server |
 | `herdr-app` | macOS cask `herdr-app`（`/Applications/Herdr.app`）；Linux 上游 install（`~/.local/share/herdr-app`） | 桌面窗口：spaces、tabs、layouts、mods | 只连 `herdr-core` |
 
-`herdr-app` 是 `herdr-core` 的窗口。本仓库只托管 `herdr-app` 的配置；`herdr-core` 的二进制与
-状态（`~/.local/share/herdr-core/`、`~/.local/state/herdr-core/`、`~/.config/herdr-core/`）
-由 app 自己安装与更新，不归这里管，也不进源树。
+`herdr-app` 是 `herdr-core` 的窗口。本仓库托管 `herdr-app` 的配置，以及 `herdr-core` 的一份 agent 模板 `templates/peer.md`。
+`herdr-core` 的二进制与其余状态（`~/.local/share/herdr-core/`、
+`~/.local/state/herdr-core/`、`~/.config/herdr-core/` 里除这份模板以外的文件）
+由 app 自己安装与更新，不归这里管。
 
 历史上还有两个程序，2026 年 11 月已卸载，本仓库不再安装或托管它们：`herdr` 0.9.5（Herdr 1，
 自带 daemon 的 TUI）与 Sheprd（原 Herdr UI / `herdr-gpui`，`so.pen.herdr-gpui`）。`herdr-core`
 是另一个 daemon（Herdr 2），与它们不共享会话，`herdr` 与 Sheprd 的目录、pi 集成扩展与 skill
 都已清除。
+
+## peer 模板
+
+`templates/peer.md` 只写怎么定位自己、怎么找到同一个 Herdr space 里的其他 agent、以及怎么用 `hc send` 说话。它不规定 agent 的任务。文件名去掉 `.md` 就是模板名，所以启动是 `hc run peer "<任务>"`。正文在每次 `hc run` 时重新读入，成为第一条消息；已经跑着的 agent 不会自动重读，要改规矩就 `hc send` 让它去读这份文件。
+
+| 平台 | 源 | 目标 |
+| --- | --- | --- |
+| macOS、Linux | `dot_config/herdr-core/templates/peer.md` | `~/.config/herdr-core/templates/peer.md` |
+| Windows | `AppData/Roaming/herdr-core/templates/peer.md` | `%APPDATA%\herdr-core\templates\peer.md` |
+
+两份源内容相同。Windows 的 herdr-core 不读 `~/.config`，所以 `.chezmoiignore` 在 Windows 上排除 `.config/herdr-core`，避免落到没人读的位置。`command` 是 `pi`；那台机器没有 `pi` 时，`hc run peer` 起不来，文件仍可被已有 agent 读。
 
 ## 安装
 
