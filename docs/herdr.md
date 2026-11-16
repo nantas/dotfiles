@@ -259,6 +259,43 @@ Ghostty 的 16：app 里定成 15 后写回了源，免得下次 apply 盖回去
 Windows 上模板只把面板字体换成 `Microsoft YaHei UI`，字号沿用
 默认 16；herdr-app 在那台机器上没有实测过，等做到 Windows 时再对。
 
+## 剪贴板：远端面板里的复制
+
+Herdr 只有一个剪贴板：**app 所在那台机器的系统剪贴板**。远端 Linux 面板里选中的文字，
+要么经 herdr 自己的选区（`terminal.copy`）进去，要么由面板里的程序用 OSC 52 写进去，
+两条路终点都是它。
+
+- `terminal.copy` 只复制 **herdr 自己的选区**；没有选区时那个键原样交给程序。
+- 程序接管鼠标时（pi 的 fullscreen、tmux、`mouse=a` 的 vim），**普通拖选归程序**，
+  按住 Shift 拖才是 herdr 的选区。`copy_on_select` 默认开，选中松手即进剪贴板。
+- `terminal.paste` 在剪贴板只剩图片时退化成 `terminal.paste_image`：在目标机器落一个文件
+  并打出路径。这是「粘贴被当成图片」的唯一来源。
+- OSC 52 只在**有面板**的终端上被采纳。没有 pane 的后台终端（`hc run --bg` 那种）发出的
+  序列会被丢掉，`herdr-app do terminal.peek --terminal <t>` 之后立刻生效。
+
+### 远端 pi 的复制会静默丢失
+
+pi 在 fullscreen 模式接管鼠标，选中即复制，走 `copyToClipboard()`：Linux 上先试
+`wl-copy` / `xclip`，成功就结束，**不再发 OSC 52**。OSC 52 只在「headless」或「有 ssh 标记」
+（`SSH_CONNECTION` / `SSH_CLIENT` / `MOSH_CONNECTION`）时才补发。
+
+herdr-core 不是从 ssh 会话起的，环境里没有那些标记；而装了图形会话的机器（`WAYLAND_DISPLAY`
+有值、`wl-copy` 可用）上 `wl-copy` 又会成功——两个条件都不满足 → OSC 52 永远不发 →
+herdr 拿不到，Mac 剪贴板保持原内容，看起来就是「拖选复制了但粘贴出来是旧内容」。
+
+修法是在那台机器的 `~/.zshenv` 里打开 pi 自己的开关（即使本地写入成功也额外发一次 OSC 52）：
+
+```sh
+export PI_CLIPBOARD_OSC52=1
+```
+
+实测（在 archlinux 上直接调用 pi 的 `dist/utils/clipboard.js`，往有面板的终端发）：
+不加变量时 Mac 剪贴板不变，加了变量才有内容。变量写在机器本地的 `~/.zshenv`，
+不在本仓库的源里。headless 的机器（如 veegit）本来就走 OSC 52，不需要设。
+
+同一个坑对 keys.json 也成立：`~/.config/herdr-app/keys.json` 是运行时文件，不托管，
+一旦编辑过，herdr 的默认键（`cmd-a` 全选、Linux 上的 `ctrl-shift-c/v`）就不再补上。
+
 ## 验证
 
 ```bash
