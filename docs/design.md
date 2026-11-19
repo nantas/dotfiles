@@ -18,6 +18,10 @@
 
 ## 仓库边界
 
+机器本地的数据分区、fstab 与文件系统修复不由 chezmoi apply 接管。
+异常关机后的 NTFS 恢复流程与迁移取舍见 [ntfs-recovery.md](ntfs-recovery.md)；
+不将清除 dirty 标记或 force 挂载做成自动动作。
+
 | 仓库 | 状态 | 内容 |
 | --- | --- | --- |
 | **dotfiles**（本仓库） | 新建，唯一真源 | chezmoi 源（配置 + 模板）+ `bootstrap/` 装机入口 + `run_*` 动作脚本 |

@@ -150,6 +150,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 
 - [`docs/design.md`](docs/design.md) — 仓库的设计推导与实施记录。遇到结构性问题先读它。
 - [`docs/mihomo.md`](docs/mihomo.md) — 代理：仓库钉住什么、哪些现值不进文档、怎么在本机重读。
+- [`docs/ntfs-recovery.md`](docs/ntfs-recovery.md) — 数据卷异常关机后的取证、NTFS 应急恢复流程与 ext4 迁移记录。
 - [`docs/onboarding-a-machine.md`](docs/onboarding-a-machine.md) — 在一台新机器上接入的完整流程，给那台机器上的 agent 读。
 - [`docs/ecs.md`](docs/ecs.md) — 阿里云 ECS（Debian 13，无 GUI）：`headless` 开关的形状、`fdfind` / `batcat` 命名差异、GitHub release 被墙时 chezmoi 怎么装、各脚本在无桌面机器上的行为。
 - [`docs/chezmoi-notes.md`](docs/chezmoi-notes.md) — chezmoi 的坑：目标路径匹配、双向排除、空父目录、目录权限、脚本记账，以及**home 目录里不纳入源的清单**。
