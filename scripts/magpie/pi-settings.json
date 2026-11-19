@@ -16,7 +16,7 @@
     "deepseek/deepseek-v4-pro",
     "magpie/deepseek/deepseek-flash",
     "magpie/teamorouter-claude/claude-fable-5-2",
-    "magpie/grok/grok-4.7",
+    "magpie/grok/grok-4.7@500k",
     "magpie/agy-cli/gemini-4-argon"
   ],
   "quietStartup": true,

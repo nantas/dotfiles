@@ -135,8 +135,6 @@
       "name": "",
       "key": "",
       "models": [
-        "grok-4.7",
-        "grok-4.7-build-fast",
         "grok-4.7@500k",
         "grok-4.7-build-fast@500k"
       ]
