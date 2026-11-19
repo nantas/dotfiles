@@ -1204,3 +1204,13 @@ Unity 账号、许可证和 Hub/项目运行状态不入源。未修改 bootstra
 不替换原始应用命令，不影响 niri 窗口恢复和显式新窗口操作；现有 `.local` 平台排除
 规则保证它们只部署到 Linux。调用约定写入 `AGENTS.md`，实现限制与远程验收见
 [wayland-attach.md](wayland-attach.md) 的「默认复用标签页」。
+
+### Magpie 网关与 Agent 自动化初始化（2026-11-19）
+
+新增 `run_onchange_after_52-ai-agents.{sh,ps1}.tmpl`、`run_onchange_after_55-magpie.{sh,ps1}.tmpl`
+与 `scripts/magpie/` 种子文件，以及 stage-3 提示词 `.pi/prompts/magpie-auth.md`。
+
+Magpie 与 pi / claude / codex 的配置均属运行时可变状态且包含密钥或登录态，不作为普通受管文件
+持续同步，而是采用「首次 seed + 状态标记（`~/.local/state/magpie-bootstrap/seeded`）+ 缺失 ID 合并」。
+私人 SRV 网关地址不入库，改由 `[data.magpie] srvUrl`、`MAGPIE_SRV_URL`、交互提示或 `/magpie-auth`
+阶段输入；三平台细节与恢复流程见 [magpie.md](magpie.md)。

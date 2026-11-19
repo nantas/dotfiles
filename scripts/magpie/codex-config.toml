@@ -1,0 +1,13 @@
+model = "gpt-6.2-astra"
+model_reasoning_effort = "medium"
+service_tier = "default"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+web_search = "cached"
+file_opener = "vscode"
+
+[model_providers.gmn]
+name = "gmn"
+wire_api = "responses"
+requires_openai_auth = true
+base_url = "https://gmn.chuangzuoli.com"

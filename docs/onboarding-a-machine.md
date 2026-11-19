@@ -362,3 +362,6 @@ macOS 15.x / Windows 11（写明版本）
 
 **先 `diff` 比对，再 `apply`；判断方向，不要默认源是对的；需要 root 的动作用 bootstrap；
 `run_*` 脚本失败后要清 `scriptState` 才能重试；改完推回仓库。**
+
+若接入了 Magpie，跑完 `chezmoi apply` 后先补 API Key，再运行 `.pi/prompts/magpie-auth.md`
+（`/magpie-auth`）完成浏览器 OAuth 鉴权与 Agent 模型接线；细节见 [`docs/magpie.md`](magpie.md)。

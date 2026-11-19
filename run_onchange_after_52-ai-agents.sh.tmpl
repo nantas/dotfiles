@@ -1,0 +1,77 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/bash
+# Per-user AI agent CLIs alongside pi (installed by 50-pi-config): claude,
+# codex, and agy. All three live under $HOME and need no root. Missing tools
+# are installed best-effort so a single blocked CDN does not abort chezmoi apply.
+set -uo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+load_nvm() {
+  if command -v npm > /dev/null 2>&1; then
+    return 0
+  fi
+  if [ -s "$HOME/.nvm/nvm.sh" ]; then
+    set +u
+    # shellcheck source=/dev/null
+    . "$HOME/.nvm/nvm.sh" || true
+    set -u
+  fi
+}
+
+step_optional() {
+  local name="$1"
+  shift
+  local rc=0
+  echo ""
+  echo ">>> $name (optional)"
+  "$@" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "    ok"
+  else
+    echo "    skipped (exit $rc); install it by hand if needed" >&2
+  fi
+  return 0
+}
+
+install_claude() {
+  if command -v claude > /dev/null 2>&1; then
+    echo "    claude: $(claude --version 2>/dev/null | head -1)"
+    return 0
+  fi
+  local installer
+  installer="$(curl -fsSL https://claude.ai/install.sh)" || return 1
+  bash -c "$installer" || return 1
+  echo "    claude: $(claude --version 2>/dev/null | head -1)"
+}
+
+install_codex() {
+  if command -v codex > /dev/null 2>&1; then
+    echo "    codex: $(codex --version 2>/dev/null | head -1)"
+    return 0
+  fi
+  load_nvm
+  if ! command -v npm > /dev/null 2>&1; then
+    echo "    codex: npm is missing; install Node/npm and re-run" >&2
+    return 1
+  fi
+  npm install -g @openai/codex || return 1
+  echo "    codex: $(codex --version 2>/dev/null | head -1)"
+}
+
+install_agy() {
+  if command -v agy > /dev/null 2>&1; then
+    echo "    agy: $(agy --version 2>/dev/null | head -1)"
+    return 0
+  fi
+  local installer
+  installer="$(curl -fsSL https://antigravity.google/cli/install.sh)" || return 1
+  bash -c "$installer" || return 1
+  echo "    agy: $(agy --version 2>/dev/null | head -1)"
+}
+
+echo ">>> AI agent CLIs (claude, codex, agy)"
+step_optional "claude (Claude Code)" install_claude
+step_optional "codex (OpenAI Codex CLI)" install_codex
+step_optional "agy (Antigravity CLI)" install_agy
+{{ end -}}

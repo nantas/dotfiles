@@ -1,0 +1,4 @@
+model = "gpt-5.2"
+model_reasoning_effort = "low"
+sandbox_mode = "danger-full-access"
+approval_policy = "never"

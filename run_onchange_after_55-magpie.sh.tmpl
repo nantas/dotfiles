@@ -1,0 +1,305 @@
+{{ if ne .chezmoi.os "windows" -}}
+#!/bin/bash
+# Install and seed Magpie plus non-credential defaults for pi, claude, and
+# codex. Runtime state (keys, OAuth tokens, active agent wiring) is never
+# overwritten on subsequent applies: a state marker guards one-time seeds and
+# providers.json only adds missing IDs. See docs/magpie.md.
+#
+# seed hashes:
+#   providers.json:            {{ include "scripts/magpie/providers.json" | sha256sum }}
+#   auto-picks.json:           {{ include "scripts/magpie/auto-picks.json" | sha256sum }}
+#   pi-settings.json:          {{ include "scripts/magpie/pi-settings.json" | sha256sum }}
+#   pi-models.json:            {{ include "scripts/magpie/pi-models.json" | sha256sum }}
+#   claude-settings.json:      {{ include "scripts/magpie/claude-settings.json" | sha256sum }}
+#   codex-config.toml:         {{ include "scripts/magpie/codex-config.toml" | sha256sum }}
+#   codex-auto-max.config:     {{ include "scripts/magpie/codex-auto-max.config.toml" | sha256sum }}
+#   codex-review.config:       {{ include "scripts/magpie/codex-review.config.toml" | sha256sum }}
+set -uo pipefail
+
+export PATH="$HOME/.local/bin:$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+SRC="{{ .chezmoi.sourceDir }}/scripts/magpie"
+MAGPIE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/magpie"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/magpie-bootstrap"
+MARK="$STATE_DIR/seeded"
+HEADLESS="{{ if index . "headless" }}1{{ else }}0{{ end }}"
+SRV_URL="{{ $srv := "" }}{{ if hasKey . "magpie" }}{{ $srv = (index .magpie "srvUrl" | default "") }}{{ end }}{{ $srv }}"
+if [ -z "$SRV_URL" ]; then
+  SRV_URL="${MAGPIE_SRV_URL:-}"
+fi
+SRV_URL="${SRV_URL%/}"
+
+PLUGINS=(
+  "@magpie-community/opencode-workbuddy-auth@latest"
+  "@magpie-community/opencode-grok-auth@latest"
+  "@jianmu-plugins/opencode-agy-cli-auth@latest"
+)
+
+FAILED_STEPS=()
+
+step() {
+  local name="$1"
+  shift
+  local rc=0
+  echo ""
+  echo ">>> $name"
+  "$@" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "    ok"
+  else
+    FAILED_STEPS+=("$name")
+    echo "    FAILED (exit $rc); continuing" >&2
+  fi
+}
+
+step_optional() {
+  local name="$1"
+  shift
+  local rc=0
+  echo ""
+  echo ">>> $name (optional)"
+  "$@" || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    echo "    ok"
+  else
+    echo "    skipped (exit $rc); continue manually if needed" >&2
+  fi
+  return 0
+}
+
+ensure_magpie() {
+  if command -v magpie > /dev/null 2>&1; then
+    echo "    magpie: $(command -v magpie)"
+    return 0
+  fi
+  local installer
+  installer="$(curl -fsSL https://usemagpie.ai/install.sh)" || return 1
+  if [ "$HEADLESS" = "1" ]; then
+    sh -c "$installer" "" --tui || return 1
+  else
+    sh -c "$installer" || return 1
+  fi
+  command -v magpie > /dev/null 2>&1 || {
+    echo "    magpie is still not on PATH after install" >&2
+    return 1
+  }
+}
+
+has_remote_provider() {
+  local file="$MAGPIE_CONFIG/providers.json"
+  [ -f "$file" ] || return 1
+  if command -v jq > /dev/null 2>&1; then
+    jq -e '.providers[]? | select(.id | startswith("remote-"))' "$file" > /dev/null 2>&1
+    return $?
+  fi
+  grep -q '"id":[[:space:]]*"remote-' "$file"
+}
+
+resolve_srv_url() {
+  if [ -n "$SRV_URL" ]; then
+    return 0
+  fi
+  if has_remote_provider; then
+    return 0
+  fi
+  # Only prompt when an interactive terminal is attached; unattended apply stays non-blocking.
+  if [ -t 0 ]; then
+    echo ""
+    printf "    Remote Magpie (SRV) URL (e.g. https://srv.example.com, Enter to skip): "
+    IFS= read -r SRV_URL || true
+    SRV_URL="${SRV_URL%/}"
+  fi
+}
+
+make_srv_json() {
+  local url="$1"
+  local host label id
+  host="${url#*://}"
+  host="${host%%/*}"
+  host="${host%%:*}"
+  label="${host%%.*}"
+  if [ -z "$label" ]; then
+    id="remote-srv"
+  else
+    id="remote-$label"
+  fi
+  jq -n --arg id "$id" --arg url "$url" '{
+    id: $id,
+    name: "SRV",
+    preset: "remote-magpie",
+    key: "",
+    models: [
+      "claude/claude-opus-5-5",
+      "claude/claude-sonnet-5-5",
+      "claude/claude-haiku-5-5"
+    ],
+    chat: ($url + "/v1"),
+    responses: ($url + "/v1"),
+    anthropic: $url,
+    decide: ($url + "/v1")
+  }'
+}
+
+seed_providers() {
+  mkdir -p "$MAGPIE_CONFIG"
+  chmod 700 "$MAGPIE_CONFIG"
+  local target="$MAGPIE_CONFIG/providers.json"
+  local tmp
+  tmp="$(mktemp)"
+
+  if [ ! -f "$target" ]; then
+    if [ -n "$SRV_URL" ] && command -v jq > /dev/null 2>&1; then
+      local srv_obj
+      srv_obj="$(make_srv_json "$SRV_URL")"
+      jq --argjson srv "$srv_obj" '.providers += [$srv]' "$SRC/providers.json" > "$tmp" || { rm -f "$tmp"; return 1; }
+    else
+      cp "$SRC/providers.json" "$tmp" || { rm -f "$tmp"; return 1; }
+    fi
+    chmod 600 "$tmp"
+    mv "$tmp" "$target"
+    echo "    created $target"
+    return 0
+  fi
+
+  if ! command -v jq > /dev/null 2>&1; then
+    rm -f "$tmp"
+    echo "    jq missing; keeping existing $target untouched"
+    return 0
+  fi
+
+  # Append only provider IDs not already present; never overwrite existing keys or edits.
+  if [ ! -e "$MARK" ]; then
+    jq -s '
+      .[0] as $cur | .[1] as $seed |
+      ($cur.providers // []) as $existing |
+      ($existing | map(.id)) as $ids |
+      $cur + {providers: ($existing + ($seed.providers | map(select(.id as $i | ($ids | index($i)) == null))))}
+    ' "$target" "$SRC/providers.json" > "$tmp" || { rm -f "$tmp"; return 1; }
+    chmod 600 "$tmp"
+    mv "$tmp" "$target"
+    echo "    merged missing seed providers into $target"
+  else
+    rm -f "$tmp"
+  fi
+
+  if [ -n "$SRV_URL" ] && ! has_remote_provider; then
+    local srv_obj
+    srv_obj="$(make_srv_json "$SRV_URL")"
+    tmp="$(mktemp)"
+    jq --argjson srv "$srv_obj" '.providers += [$srv]' "$target" > "$tmp" || { rm -f "$tmp"; return 1; }
+    chmod 600 "$tmp"
+    mv "$tmp" "$target"
+    echo "    added remote SRV provider to $target"
+  fi
+}
+
+seed_magpie_settings() {
+  mkdir -p "$MAGPIE_CONFIG"
+  if [ ! -f "$MAGPIE_CONFIG/auto-picks.json" ]; then
+    cp "$SRC/auto-picks.json" "$MAGPIE_CONFIG/auto-picks.json" || return 1
+    chmod 600 "$MAGPIE_CONFIG/auto-picks.json"
+  fi
+  if [ -e "$MARK" ]; then
+    return 0
+  fi
+  magpie settings set theme system || return 1
+  magpie settings set lang system || return 1
+  magpie settings set tray panel || return 1
+  magpie settings set currency usd || return 1
+  magpie settings set updateEvery 360 || return 1
+  magpie settings set trayUsageEvery 3 || return 1
+  mkdir -p "$STATE_DIR"
+  : > "$MARK"
+  echo "    seeded magpie settings and marked $MARK"
+}
+
+ensure_plugins() {
+  local plugins_file="$MAGPIE_CONFIG/plugins.json"
+  local spec pkg installed
+  for spec in "${PLUGINS[@]}"; do
+    # Strip trailing @tag (keep scoped @scope/name intact).
+    pkg="${spec%@*}"
+    installed=0
+    if [ -f "$plugins_file" ] && grep -Fq "$pkg" "$plugins_file"; then
+      installed=1
+    fi
+    if [ "$installed" -eq 1 ]; then
+      echo "    plugin already installed: $pkg"
+    else
+      echo "    installing plugin: $spec"
+      magpie plugin add "$spec" || return 1
+    fi
+  done
+}
+
+seed_if_missing() {
+  local src_file="$1"
+  local dst_file="$2"
+  local mode="$3"
+  if [ -f "$dst_file" ]; then
+    echo "    keeping existing $dst_file"
+    return 0
+  fi
+  mkdir -p "$(dirname "$dst_file")"
+  cp "$src_file" "$dst_file" || return 1
+  chmod "$mode" "$dst_file"
+  echo "    seeded $dst_file"
+}
+
+seed_agent_configs() {
+  seed_if_missing "$SRC/pi-settings.json" "$HOME/.pi/agent/settings.json" 644 || return 1
+  seed_if_missing "$SRC/pi-models.json" "$HOME/.pi/agent/models.json" 600 || return 1
+  seed_if_missing "$SRC/claude-settings.json" "$HOME/.claude/settings.json" 644 || return 1
+  seed_if_missing "$SRC/codex-config.toml" "$HOME/.codex/config.toml" 644 || return 1
+  seed_if_missing "$SRC/codex-auto-max.config.toml" "$HOME/.codex/auto-max.config.toml" 644 || return 1
+  seed_if_missing "$SRC/codex-review.config.toml" "$HOME/.codex/review.config.toml" 644 || return 1
+}
+
+ensure_service() {
+  if [ "$HEADLESS" = "1" ]; then
+    if magpie daemon status 2>/dev/null | grep -qi "running"; then
+      echo "    magpie daemon already running"
+      return 0
+    fi
+    magpie daemon install
+    return $?
+  fi
+  if magpie autostart 2>/dev/null | grep -q "opens at login"; then
+    echo "    magpie autostart already enabled"
+    return 0
+  fi
+  magpie autostart on
+}
+
+echo ">>> magpie install & seed"
+
+step "install magpie" ensure_magpie
+if command -v magpie > /dev/null 2>&1; then
+  resolve_srv_url
+  step "seed magpie providers" seed_providers
+  step "seed magpie settings & auto-picks" seed_magpie_settings
+  step_optional "install magpie plugins" ensure_plugins
+  step "seed initial pi / claude / codex configs" seed_agent_configs
+  step_optional "enable magpie autostart / daemon" ensure_service
+fi
+
+echo ""
+echo "=========================================="
+if [ "${#FAILED_STEPS[@]}" -eq 0 ]; then
+  echo ">>> Magpie bootstrap finished."
+else
+  echo ">>> Finished with ${#FAILED_STEPS[@]} failed step(s):"
+  for s in "${FAILED_STEPS[@]}"; do
+    echo "      - $s"
+  done
+  echo "    Fix these, clear scriptState (chezmoi state delete-bucket --bucket=scriptState), and re-run."
+  exit 1
+fi
+
+echo ""
+echo ">>> Next steps:"
+echo "    1. Fill API/Gateway keys in Magpie (UI -> Providers, or 'magpie provider key <id> <key>'):"
+echo "       deepseek, zhipuai-coding-plan, teamorouter-claude, kimi, and your SRV remote provider."
+echo "    2. Run '/magpie-auth' in Pi (see docs/magpie.md) to complete browser OAuth logins"
+echo "       (workbuddy, grok, agy-cli, codex) and wire Claude/Pi/Codex models."
+{{ end -}}

@@ -1,0 +1,220 @@
+{{ if eq .chezmoi.os "windows" -}}
+#Requires -Version 5.1
+# Install and seed Magpie plus non-credential defaults for pi, claude, and
+# codex on Windows. Runtime state is never overwritten on subsequent applies.
+# See docs/magpie.md.
+#
+# seed hashes:
+#   providers.json:            {{ include "scripts/magpie/providers.json" | sha256sum }}
+#   auto-picks.json:           {{ include "scripts/magpie/auto-picks.json" | sha256sum }}
+#   pi-settings.json:          {{ include "scripts/magpie/pi-settings.json" | sha256sum }}
+#   pi-models.json:            {{ include "scripts/magpie/pi-models.json" | sha256sum }}
+#   claude-settings.json:      {{ include "scripts/magpie/claude-settings.json" | sha256sum }}
+#   codex-config.toml:         {{ include "scripts/magpie/codex-config.toml" | sha256sum }}
+#   codex-auto-max.config:     {{ include "scripts/magpie/codex-auto-max.config.toml" | sha256sum }}
+#   codex-review.config:       {{ include "scripts/magpie/codex-review.config.toml" | sha256sum }}
+$ErrorActionPreference = 'Stop'
+
+$src = Join-Path '{{ .chezmoi.sourceDir }}' 'scripts\magpie'
+$magpieConfig = if ($env:XDG_CONFIG_HOME) {
+  Join-Path $env:XDG_CONFIG_HOME 'magpie'
+} else {
+  Join-Path $env:USERPROFILE '.config\magpie'
+}
+$stateDir = Join-Path $env:USERPROFILE '.local\state\magpie-bootstrap'
+$mark = Join-Path $stateDir 'seeded'
+$magpieDir = Join-Path $env:LOCALAPPDATA 'Programs\magpie'
+$magpieExe = Join-Path $magpieDir 'magpie.exe'
+$curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+$srvUrl = '{{ $srv := "" }}{{ if hasKey . "magpie" }}{{ $srv = (index .magpie "srvUrl" | default "") }}{{ end }}{{ $srv }}'
+if (-not $srvUrl) { $srvUrl = $env:MAGPIE_SRV_URL }
+if ($srvUrl) { $srvUrl = $srvUrl.TrimEnd('/') }
+
+$plugins = @(
+  '@magpie-community/opencode-workbuddy-auth@latest',
+  '@magpie-community/opencode-grok-auth@latest',
+  '@jianmu-plugins/opencode-agy-cli-auth@latest'
+)
+
+function Write-Utf8NoBom {
+  param([string]$Path, [string]$Content)
+  $parent = Split-Path -Parent $Path
+  if (-not (Test-Path -LiteralPath $parent)) {
+    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+  }
+  [System.IO.File]::WriteAllText($Path, $Content, $utf8NoBom)
+}
+
+function Ensure-Magpie {
+  $cmd = Get-Command magpie -ErrorAction SilentlyContinue
+  if ($cmd) {
+    Write-Host "    magpie: $($cmd.Source)"
+    return $cmd.Source
+  }
+  if (-not (Test-Path -LiteralPath $magpieExe)) {
+    New-Item -ItemType Directory -Force -Path $magpieDir | Out-Null
+    $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'windows-arm64' } else { 'windows-amd64' }
+    Write-Host "    downloading magpie ($arch) to $magpieExe"
+    & $curl -fsSL "https://usemagpie.ai/download/$arch" -o $magpieExe
+    if ($LASTEXITCODE -ne 0) { throw "curl exited $LASTEXITCODE" }
+  }
+  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+  if ($userPath -notlike "*$magpieDir*") {
+    $newPath = if ($userPath) { "$userPath;$magpieDir" } else { $magpieDir }
+    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+  }
+  if ($env:PATH -notlike "*$magpieDir*") {
+    $env:PATH = "$magpieDir;$env:PATH"
+  }
+  return $magpieExe
+}
+
+function Has-RemoteProvider {
+  $file = Join-Path $magpieConfig 'providers.json'
+  if (-not (Test-Path -LiteralPath $file)) { return $false }
+  $raw = [System.IO.File]::ReadAllText($file)
+  return ($raw -match '"id"\s*:\s*"remote-')
+}
+
+function New-SrvObject {
+  param([string]$Url)
+  $uri = [Uri]$Url
+  $label = ($uri.Host -split '\.')[0]
+  $id = if ($label) { "remote-$label" } else { 'remote-srv' }
+  return [PSCustomObject]@{
+    id        = $id
+    name      = 'SRV'
+    preset    = 'remote-magpie'
+    key       = ''
+    models    = @('claude/claude-opus-5-5', 'claude/claude-sonnet-5-5', 'claude/claude-haiku-5-5')
+    chat      = "$Url/v1"
+    responses = "$Url/v1"
+    anthropic = $Url
+    decide    = "$Url/v1"
+  }
+}
+
+Write-Host ">>> magpie install & seed (Windows)"
+$exe = Ensure-Magpie
+
+if (-not $srvUrl -and -not (Has-RemoteProvider)) {
+  if ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+    $inputUrl = Read-Host "    Remote Magpie (SRV) URL (e.g. https://srv.example.com, Enter to skip)"
+    if ($inputUrl) { $srvUrl = $inputUrl.Trim().TrimEnd('/') }
+  }
+}
+
+if (-not (Test-Path -LiteralPath $magpieConfig)) {
+  New-Item -ItemType Directory -Force -Path $magpieConfig | Out-Null
+}
+
+$providersPath = Join-Path $magpieConfig 'providers.json'
+if (-not (Test-Path -LiteralPath $providersPath)) {
+  $seed = ([System.IO.File]::ReadAllText((Join-Path $src 'providers.json'))) | ConvertFrom-Json
+  if ($srvUrl) {
+    $seed.providers += (New-SrvObject -Url $srvUrl)
+  }
+  Write-Utf8NoBom -Path $providersPath -Content ($seed | ConvertTo-Json -Depth 10)
+  Write-Host "    created $providersPath"
+} else {
+  $cur = ([System.IO.File]::ReadAllText($providersPath)) | ConvertFrom-Json
+  $changed = $false
+  if (-not (Test-Path -LiteralPath $mark)) {
+    $seed = ([System.IO.File]::ReadAllText((Join-Path $src 'providers.json'))) | ConvertFrom-Json
+    $existingIds = @($cur.providers | ForEach-Object { $_.id })
+    foreach ($p in $seed.providers) {
+      if ($existingIds -notcontains $p.id) {
+        $cur.providers += $p
+        $changed = $true
+      }
+    }
+  }
+  if ($srvUrl -and -not (Has-RemoteProvider)) {
+    $cur.providers += (New-SrvObject -Url $srvUrl)
+    $changed = $true
+  }
+  if ($changed) {
+    Write-Utf8NoBom -Path $providersPath -Content ($cur | ConvertTo-Json -Depth 10)
+    Write-Host "    merged missing providers into $providersPath"
+  }
+}
+
+$autoPicksDst = Join-Path $magpieConfig 'auto-picks.json'
+if (-not (Test-Path -LiteralPath $autoPicksDst)) {
+  Copy-Item -LiteralPath (Join-Path $src 'auto-picks.json') -Destination $autoPicksDst
+}
+
+if (-not (Test-Path -LiteralPath $mark)) {
+  foreach ($pair in @(
+    @('theme', 'system'),
+    @('lang', 'system'),
+    @('tray', 'panel'),
+    @('currency', 'usd'),
+    @('updateEvery', '360'),
+    @('trayUsageEvery', '3')
+  )) {
+    & $exe settings set $pair[0] $pair[1]
+    if ($LASTEXITCODE -ne 0) { throw "magpie settings set $($pair[0]) failed ($LASTEXITCODE)" }
+  }
+  New-Item -ItemType Directory -Force -Path $stateDir | Out-Null
+  New-Item -ItemType File -Force -Path $mark | Out-Null
+  Write-Host "    seeded magpie settings and marked $mark"
+}
+
+$pluginsFile = Join-Path $magpieConfig 'plugins.json'
+$pluginsRaw = if (Test-Path -LiteralPath $pluginsFile) { [System.IO.File]::ReadAllText($pluginsFile) } else { '' }
+foreach ($spec in $plugins) {
+  $pkg = $spec -replace '@[^@/]+$', ''
+  if ($pluginsRaw.Contains($pkg)) {
+    Write-Host "    plugin already installed: $pkg"
+  } else {
+    Write-Host "    installing plugin: $spec"
+    try {
+      & $exe plugin add $spec
+      if ($LASTEXITCODE -ne 0) { Write-Warning "    magpie plugin add $spec exited $LASTEXITCODE" }
+    } catch {
+      Write-Warning "    magpie plugin add $spec failed ($($_.Exception.Message))"
+    }
+  }
+}
+
+$seedPairs = @(
+  @('pi-settings.json', (Join-Path $env:USERPROFILE '.pi\agent\settings.json')),
+  @('pi-models.json', (Join-Path $env:USERPROFILE '.pi\agent\models.json')),
+  @('claude-settings.json', (Join-Path $env:USERPROFILE '.claude\settings.json')),
+  @('codex-config.toml', (Join-Path $env:USERPROFILE '.codex\config.toml')),
+  @('codex-auto-max.config.toml', (Join-Path $env:USERPROFILE '.codex\auto-max.config.toml')),
+  @('codex-review.config.toml', (Join-Path $env:USERPROFILE '.codex\review.config.toml'))
+)
+foreach ($pair in $seedPairs) {
+  $dst = $pair[1]
+  if (Test-Path -LiteralPath $dst) {
+    Write-Host "    keeping existing $dst"
+    continue
+  }
+  $parent = Split-Path -Parent $dst
+  if (-not (Test-Path -LiteralPath $parent)) {
+    New-Item -ItemType Directory -Force -Path $parent | Out-Null
+  }
+  Copy-Item -LiteralPath (Join-Path $src $pair[0]) -Destination $dst
+  Write-Host "    seeded $dst"
+}
+
+try {
+  $autostartState = & $exe autostart 2>$null
+  if ($autostartState -notmatch 'opens at login') {
+    & $exe autostart on
+  }
+} catch {
+  Write-Warning "    could not enable magpie autostart ($($_.Exception.Message))"
+}
+
+Write-Host ""
+Write-Host ">>> Next steps:"
+Write-Host "    1. Fill API/Gateway keys in Magpie (UI -> Providers, or 'magpie provider key <id> <key>'):"
+Write-Host "       deepseek, zhipuai-coding-plan, teamorouter-claude, kimi, and your SRV remote provider."
+Write-Host "    2. Run '/magpie-auth' in Pi (see docs/magpie.md) to complete browser OAuth logins"
+Write-Host "       (workbuddy, grok, agy-cli, codex) and wire Claude/Pi/Codex models."
+{{ end -}}

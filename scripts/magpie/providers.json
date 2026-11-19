@@ -1,0 +1,155 @@
+{
+  "providers": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "preset": "deepseek",
+      "catalog": "deepseek",
+      "key": "",
+      "models": [
+        "deepseek-flash"
+      ],
+      "chat": "https://api.deepseek.com/v1",
+      "responses": "https://api.deepseek.com/v1",
+      "anthropic": "https://api.deepseek.com/anthropic"
+    },
+    {
+      "id": "openlux",
+      "name": "openlux",
+      "off": true,
+      "key": "",
+      "models": [
+        "claude-sonnet-5-5",
+        "claude-opus-5-5"
+      ],
+      "anthropic": "https://api.openlux.ai"
+    },
+    {
+      "id": "minimax-cn",
+      "name": "MiniMax (China)",
+      "preset": "minimax-cn",
+      "off": true,
+      "catalog": "minimax",
+      "key": "",
+      "chat": "https://api.minimaxi.com/v1",
+      "anthropic": "https://api.minimaxi.com/anthropic"
+    },
+    {
+      "id": "zhipuai-coding-plan",
+      "name": "Zhipu GLM",
+      "preset": "zhipu",
+      "catalog": "zhipuai",
+      "key": "",
+      "models": [
+        "glm-5.3",
+        "glm-5.3-flash"
+      ],
+      "chat": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "responses": "https://open.bigmodel.cn/api/v1",
+      "anthropic": "https://open.bigmodel.cn/api/anthropic"
+    },
+    {
+      "id": "zai-coding-cn",
+      "name": "Z.ai",
+      "preset": "zai",
+      "off": true,
+      "catalog": "zhipuai",
+      "key": "",
+      "chat": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "responses": "https://open.bigmodel.cn/api/v1",
+      "anthropic": "https://open.bigmodel.cn/api/anthropic"
+    },
+    {
+      "id": "teamorouter-claude",
+      "name": "teamorouter-claude",
+      "baseAPI": "anthropic",
+      "key": "",
+      "models": [
+        "claude-fable-5-1",
+        "claude-fable-5-2"
+      ],
+      "anthropic": "https://api.teamorouter.com"
+    },
+    {
+      "id": "teamorouter",
+      "name": "teamorouter",
+      "off": true,
+      "key": "",
+      "models": [
+        "gpt-6.1-sol",
+        "gpt-6-astra",
+        "gpt-6-sol",
+        "gpt-6-luna",
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna",
+        "gpt-5.5",
+        "gpt-5.4",
+        "gemini-4-argon",
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-pro-preview",
+        "deepseek-flash",
+        "deepseek-flash-free",
+        "deepseek-v4-flash-vision-exp",
+        "deepseek-v4-pro",
+        "deepseek-v4-flash",
+        "deepseek-v4-flash-free",
+        "glm-5.3-flash",
+        "glm-5.3-flash-free",
+        "glm-5.3",
+        "glm-5.2",
+        "grok-4.6",
+        "kimi-k3.1-pro"
+      ],
+      "chat": "https://api.teamorouter.com/v1"
+    },
+    {
+      "id": "workbuddy",
+      "name": "",
+      "key": "",
+      "models": [
+        "hy4flash-free",
+        "hy4std",
+        "deepseek-v4.1-flash",
+        "hy4flash"
+      ]
+    },
+    {
+      "id": "kimi",
+      "name": "Kimi Code",
+      "preset": "kimi",
+      "catalog": "kimi-code-plan-cn",
+      "key": "",
+      "models": [
+        "kimi-for-coding",
+        "k3.1-pro"
+      ],
+      "chat": "https://api.kimi.com/coding/v1",
+      "anthropic": "https://api.kimi.com/coding"
+    },
+    {
+      "id": "grok",
+      "name": "",
+      "key": "",
+      "models": [
+        "grok-4.7",
+        "grok-4.7-build-fast",
+        "grok-4.7@500k",
+        "grok-4.7-build-fast@500k"
+      ]
+    },
+    {
+      "id": "agy-cli",
+      "name": "",
+      "key": "",
+      "models": [
+        "gemini-3.8-flash",
+        "gemini-4-argon",
+        "gemini-4-hydrogen"
+      ]
+    }
+  ]
+}

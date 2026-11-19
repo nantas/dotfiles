@@ -1,0 +1,41 @@
+{
+  "defaultProvider": "magpie",
+  "defaultModel": "deepseek/deepseek-flash",
+  "defaultThinkingLevel": "high",
+  "enabledModels": [
+    "zai-coding-cn/glm-5.3",
+    "xai/grok-4.7",
+    "deepseek/deepseek-flash",
+    "kimi-coding/k3.1-pro",
+    "antigravity/gemini-4-argon",
+    "antigravity/gemini-4-hydrogen",
+    "teamorouter-claude/claude-opus-5-5",
+    "teamorouter-claude/claude-sonnet-5-5",
+    "teamorouter-claude/claude-fable-5-2",
+    "teamorouter/gpt-6-astra",
+    "deepseek/deepseek-v4-pro",
+    "magpie/deepseek/deepseek-flash",
+    "magpie/teamorouter-claude/claude-fable-5-2",
+    "magpie/grok/grok-4.7",
+    "magpie/agy-cli/gemini-4-argon"
+  ],
+  "quietStartup": true,
+  "hideThinkingBlock": false,
+  "theme": "dark",
+  "tuiMode": "fullscreen",
+  "packages": [
+    "npm:@tmustier/pi-tab-status",
+    "npm:@johnnywu/pi-subagents",
+    "git:github.com/jwu/pi-powerline",
+    "git:github.com/lucasmeijer/pi-terminal-signals",
+    "git:github.com/nantas/pi-tool-display",
+    "git:github.com/jwu/pi-ask",
+    "git:github.com/jwu/pi-webfetch",
+    "npm:@ff-labs/pi-fff",
+    "git:github.com/DietrichGebert/ponytail",
+    "npm:pi-codex-image-gen",
+    "git:github.com/NVlabs/SoL-Pi",
+    "git:github.com/Rahularya01/pi-antigravity"
+  ],
+  "extensions": []
+}

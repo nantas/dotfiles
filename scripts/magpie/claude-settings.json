@@ -1,0 +1,15 @@
+{
+  "model": "opus[1m]",
+  "effortLevel": "xhigh",
+  "editorMode": "vim",
+  "tui": "fullscreen",
+  "env": {
+    "ENABLE_TOOL_SEARCH": "true",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "1048576",
+    "CLAUDE_CODE_EFFORT_LEVEL": "xhigh",
+    "CLAUDE_CODE_AUTO_MODE_SERVER": "0",
+    "API_TIMEOUT_MS": "3000000",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_AUTOUPDATER": "1"
+  }
+}

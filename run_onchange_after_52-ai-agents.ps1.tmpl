@@ -1,0 +1,76 @@
+{{ if eq .chezmoi.os "windows" -}}
+#Requires -Version 5.1
+# Per-user AI agent CLIs on Windows: pi, claude, codex, and agy.
+# Best-effort so a single blocked download does not abort chezmoi apply.
+$ErrorActionPreference = 'Stop'
+
+$extraPaths = @(
+  (Join-Path $env:USERPROFILE '.local\bin'),
+  (Join-Path $env:USERPROFILE 'scoop\shims'),
+  (Join-Path $env:APPDATA 'npm'),
+  (Join-Path $env:LOCALAPPDATA 'Programs\magpie')
+)
+foreach ($p in $extraPaths) {
+  if ((Test-Path -LiteralPath $p) -and ($env:PATH -notlike "*$p*")) {
+    $env:PATH = "$p;$env:PATH"
+  }
+}
+
+function Step-Optional {
+  param(
+    [string]$Name,
+    [scriptblock]$Action
+  )
+  Write-Host ""
+  Write-Host ">>> $Name (optional)"
+  try {
+    & $Action
+    Write-Host "    ok"
+  }
+  catch {
+    Write-Warning "    skipped ($($_.Exception.Message)); install it by hand if needed"
+  }
+}
+
+Step-Optional "pi (Pi coding agent)" {
+  $cmd = Get-Command pi -ErrorAction SilentlyContinue
+  if ($cmd) {
+    Write-Host "    pi: $($cmd.Source)"
+    return
+  }
+  $npm = Get-Command npm -ErrorAction SilentlyContinue
+  if (-not $npm) { throw "npm is missing; install nodejs-lts via scoop and re-run" }
+  & $npm.Source install -g '@earendil-works/pi-coding-agent'
+  if ($LASTEXITCODE -ne 0) { throw "npm install failed ($LASTEXITCODE)" }
+}
+
+Step-Optional "claude (Claude Code)" {
+  $cmd = Get-Command claude -ErrorAction SilentlyContinue
+  if ($cmd) {
+    Write-Host "    claude: $($cmd.Source)"
+    return
+  }
+  Invoke-RestMethod 'https://claude.ai/install.ps1' | Invoke-Expression
+}
+
+Step-Optional "codex (OpenAI Codex CLI)" {
+  $cmd = Get-Command codex -ErrorAction SilentlyContinue
+  if ($cmd) {
+    Write-Host "    codex: $($cmd.Source)"
+    return
+  }
+  $npm = Get-Command npm -ErrorAction SilentlyContinue
+  if (-not $npm) { throw "npm is missing; install nodejs-lts via scoop and re-run" }
+  & $npm.Source install -g '@openai/codex'
+  if ($LASTEXITCODE -ne 0) { throw "npm install failed ($LASTEXITCODE)" }
+}
+
+Step-Optional "agy (Antigravity CLI)" {
+  $cmd = Get-Command agy -ErrorAction SilentlyContinue
+  if ($cmd) {
+    Write-Host "    agy: $($cmd.Source)"
+    return
+  }
+  Invoke-RestMethod 'https://antigravity.google/cli/install.ps1' | Invoke-Expression
+}
+{{ end -}}
