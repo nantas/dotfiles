@@ -1,14 +1,14 @@
 {{ if and (eq .chezmoi.os "linux") (default false (index . "localDesktop")) -}}
 [Unit]
-Description=Lock niri after ten idle minutes
+Description=Handle explicit niri lock requests
 BindsTo=niri.service
 After=niri.service
 PartOf=graphical-session.target
 ConditionEnvironment=XDG_CURRENT_DESKTOP=niri
 
 [Service]
-# Keep lock events flowing while the foreground locker runs; see docs/lockscreen.md.
-ExecStart=/usr/bin/swayidle timeout 600 "%h/.local/bin/niri-lock" lock "%h/.local/bin/niri-lock"
+# No idle timeout during remote work; see docs/lockscreen.md.
+ExecStart=/usr/bin/swayidle lock "%h/.local/bin/niri-lock"
 Restart=on-failure
 RestartSec=3
 {{ end -}}

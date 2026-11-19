@@ -383,3 +383,28 @@ unlock 动作，`loginctl unlock-session` 也没用：niri 不监听 logind 的 
 其 `-w` 明确阻塞到命令结束。修正已部署并重启 idle 服务，没有强制锁定用户桌面；
 下一次真实空闲解锁需要用户验证。日志另有 hyprlock 退出时 wl_shm 版本错误，尚未独立调查，
 不据此把重复锁屏归咎于密码错误或 GPU。
+
+## 远程操作期间禁用空闲自动锁屏（2026-10-20）
+
+本机的 `localDesktop` 策略原先通过 `niri-idle.service` 在 600 秒无本地输入后锁屏。
+SSH 命令和 agent 操作不能保证被识别为本地输入活动，因此远程工作期间仍会触发锁屏，
+妨碍桌面截图和 GUI 操作。
+
+`dot_config/systemd/user/niri-idle.service.tmpl` 已移除 `timeout 600`，仅保留
+`swayidle lock ...` 来处理显式锁屏请求。niri 启动时仍启动这一服务，但服务不再配置空闲
+倒计时；该修改持久保存到 chezmoi 源，后续 apply、重新登录和重启不会恢复十分钟锁屏。
+手动 `Mod+L`、`niri-lock`、显式 logind Lock 请求及合盖锁屏仍按原配置工作；本次不修改
+锁屏之后的熄屏计时器，也不启用自动解锁。
+
+部署时先渲染比对，只应用这一个 unit，再执行：
+
+```sh
+systemctl --user daemon-reload
+systemctl --user restart niri-idle.service
+systemctl --user show niri-idle.service -p ActiveState -p ExecStart
+```
+
+确认生效命令只有 `swayidle lock ...`，不含 `timeout 600`。若旧服务的控制组内仍有活动
+锁屏客户端，应先正常解锁再重启服务，避免终止锁屏客户端留下红色锁定状态。
+运行配置检查不等于实际等待超过十分钟；长期空闲和下一次登录后的效果仍可按远程
+工作流复验。
