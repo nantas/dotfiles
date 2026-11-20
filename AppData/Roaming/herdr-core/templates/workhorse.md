@@ -1,6 +1,6 @@
 ---
 description: pi on magpie/group/workhorse (hc worker tier). Same peer-discovery body as peer.
-command: exec zsh -lic 'pi --model magpie/group/workhorse'
+command: pi --model magpie/group/workhorse
 ---
 This is only how to find agents and talk to them. It does not decide the task. The person's message is the task.
 
