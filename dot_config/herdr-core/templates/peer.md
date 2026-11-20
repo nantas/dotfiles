@@ -1,6 +1,6 @@
 ---
 description: Find yourself and other agents in this Herdr space, and talk to them with hc.
-command: pi
+command: exec zsh -lic 'pi'
 ---
 This is only how to find agents and talk to them. It does not decide the task. The person's message is the task.
 
