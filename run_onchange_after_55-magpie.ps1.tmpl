@@ -6,6 +6,7 @@
 #
 # seed hashes:
 #   providers.json:            {{ include "scripts/magpie/providers.json" | sha256sum }}
+#   groups.json:               {{ include "scripts/magpie/groups.json" | sha256sum }}
 #   auto-picks.json:           {{ include "scripts/magpie/auto-picks.json" | sha256sum }}
 #   pi-settings.json:          {{ include "scripts/magpie/pi-settings.json" | sha256sum }}
 #   pi-models.json:            {{ include "scripts/magpie/pi-models.json" | sha256sum }}
@@ -96,6 +97,52 @@ function New-SrvObject {
   }
 }
 
+# Seed the routing groups declared in scripts/magpie/groups.json. A member this
+# machine does not serve is dropped with a warning rather than invented, so one
+# spec fits machines with different sign-ins. See docs/magpie-routing.md.
+function Seed-Groups {
+  param([string]$Magpie)
+  $specPath = Join-Path $src 'groups.json'
+  if (-not (Test-Path -LiteralPath $specPath)) { return }
+  $spec = ([System.IO.File]::ReadAllText($specPath)) | ConvertFrom-Json
+
+  $known = @()
+  foreach ($line in @(& $Magpie models 2>$null)) {
+    if ($line -match '^\s{2}([^\s]+/[^\s]+)\s') { $known += $Matches[1] }
+  }
+  $known = @($known | Where-Object { $_ -notlike 'group/*' })
+  if ($known.Count -eq 0) {
+    Write-Warning '    magpie lists no models yet; routing groups not seeded'
+    return
+  }
+
+  if ($spec.autoGroups -eq $false) {
+    & $Magpie group auto off | Out-Null
+    Write-Host '    found groups off'
+  }
+
+  foreach ($g in $spec.groups) {
+    $kept = @()
+    $dropped = @()
+    foreach ($m in $g.models) {
+      if ($known -contains $m) { $kept += $m } else { $dropped += $m }
+    }
+    if ($kept.Count -eq 0) {
+      Write-Warning "    group $($g.id) skipped: none of its models is in this machine's catalog"
+      continue
+    }
+    if ($dropped.Count -gt 0) {
+      Write-Warning "    group $($g.id): dropped (not served here): $($dropped -join ' ')"
+    }
+    $models = $kept -join ','
+    & $Magpie group add $g.id "models=$models" "routing=$($g.routing)" "stays=$($g.stays)" "context=$($g.context)" "levels=$($g.levels)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "magpie group add $($g.id) failed ($LASTEXITCODE)" }
+    & $Magpie group set $g.id "note=$($g.note)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "magpie group set $($g.id) failed ($LASTEXITCODE)" }
+    Write-Host "    group $($g.id): $models"
+  }
+}
+
 Write-Host ">>> magpie install & seed (Windows)"
 $exe = Ensure-Magpie
 
@@ -162,6 +209,8 @@ if (-not (Test-Path -LiteralPath $mark)) {
   New-Item -ItemType File -Force -Path $mark | Out-Null
   Write-Host "    seeded magpie settings and marked $mark"
 }
+
+Seed-Groups -Magpie $exe
 
 $pluginsFile = Join-Path $magpieConfig 'plugins.json'
 $pluginsRaw = if (Test-Path -LiteralPath $pluginsFile) { [System.IO.File]::ReadAllText($pluginsFile) } else { '' }

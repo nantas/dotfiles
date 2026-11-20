@@ -7,6 +7,7 @@
 #
 # seed hashes:
 #   providers.json:            {{ include "scripts/magpie/providers.json" | sha256sum }}
+#   groups.json:               {{ include "scripts/magpie/groups.json" | sha256sum }}
 #   auto-picks.json:           {{ include "scripts/magpie/auto-picks.json" | sha256sum }}
 #   pi-settings.json:          {{ include "scripts/magpie/pi-settings.json" | sha256sum }}
 #   pi-models.json:            {{ include "scripts/magpie/pi-models.json" | sha256sum }}
@@ -193,6 +194,69 @@ seed_providers() {
   fi
 }
 
+# Routing groups are declared in scripts/magpie/groups.json, not restorable from a
+# providers.json dump (keys are in there). A member the local catalog does not serve is
+# dropped with a line rather than invented, so one spec fits machines with different
+# sign-ins. See docs/magpie-routing.md.
+seed_groups() {
+  local spec="$SRC/groups.json"
+  if [ ! -f "$spec" ]; then
+    echo "    no $spec; routing groups not seeded"
+    return 0
+  fi
+  if ! command -v jq > /dev/null 2>&1; then
+    echo "    jq missing; routing groups not seeded" >&2
+    return 1
+  fi
+
+  local known
+  known="$(magpie models 2>/dev/null | awk '/^  [^ ]+\// {print $1}' | grep -v '^group/')"
+  if [ -z "$known" ]; then
+    echo "    magpie lists no models yet; routing groups not seeded" >&2
+    return 1
+  fi
+
+  if [ "$(jq -r '.autoGroups' "$spec")" = "false" ]; then
+    magpie group auto off > /dev/null 2>&1 && echo "    found groups off"
+  fi
+
+  local count i id kept dropped m
+  count="$(jq '.groups | length' "$spec")"
+  i=0
+  while [ "$i" -lt "$count" ]; do
+    id="$(jq -r ".groups[$i].id" "$spec")"
+    kept=""
+    dropped=""
+    while IFS= read -r m; do
+      [ -n "$m" ] || continue
+      if printf '%s\n' "$known" | grep -Fxq "$m"; then
+        kept="${kept:+$kept,}$m"
+      else
+        dropped="${dropped:+$dropped }$m"
+      fi
+    done <<EOF
+$(jq -r ".groups[$i].models[]" "$spec")
+EOF
+    if [ -z "$kept" ]; then
+      echo "    group $id skipped: none of its models is in this machine's catalog" >&2
+      i=$((i + 1))
+      continue
+    fi
+    if [ -n "$dropped" ]; then
+      echo "    group $id: dropped (not served here): $dropped" >&2
+    fi
+    magpie group add "$id" \
+      "models=$kept" \
+      "routing=$(jq -r ".groups[$i].routing" "$spec")" \
+      "stays=$(jq -r ".groups[$i].stays" "$spec")" \
+      "context=$(jq -r ".groups[$i].context" "$spec")" \
+      "levels=$(jq -r ".groups[$i].levels" "$spec")" > /dev/null || return 1
+    magpie group set "$id" "note=$(jq -r ".groups[$i].note" "$spec")" > /dev/null || return 1
+    echo "    group $id: $kept"
+    i=$((i + 1))
+  done
+}
+
 seed_magpie_settings() {
   mkdir -p "$MAGPIE_CONFIG"
   if [ ! -f "$MAGPIE_CONFIG/auto-picks.json" ]; then
@@ -278,6 +342,7 @@ if command -v magpie > /dev/null 2>&1; then
   resolve_srv_url
   step "seed magpie providers" seed_providers
   step "seed magpie settings & auto-picks" seed_magpie_settings
+  step "seed routing groups" seed_groups
   step_optional "install magpie plugins" ensure_plugins
   step "seed initial pi / claude / codex configs" seed_agent_configs
   step_optional "enable magpie autostart / daemon" ensure_service

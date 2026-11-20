@@ -1,0 +1,46 @@
+{
+  "autoGroups": false,
+  "groups": [
+    {
+      "id": "grunt",
+      "note": "主要用于 subagent，一般不直接和人对话",
+      "routing": "order",
+      "stays": "auto",
+      "context": "500k",
+      "levels": "low",
+      "models": [
+        "zhipuai-coding-plan/glm-5.3",
+        "grok/grok-4.7@500k",
+        "codex/gpt-6.1-terra"
+      ]
+    },
+    {
+      "id": "workhorse",
+      "note": "直接和人对话，执行一般任务",
+      "routing": "order",
+      "stays": "auto",
+      "context": "500k",
+      "levels": "medium",
+      "models": [
+        "workbuddy/deepseek-v4.1-flash",
+        "grok/grok-4.7@500k",
+        "codex/gpt-6.2-sol",
+        "deepseek/deepseek-flash",
+        "agy-cli/gemini-4-hydrogen"
+      ]
+    },
+    {
+      "id": "leader",
+      "note": "高智能，主要和人对话，处理复杂问题，规划、设计、指挥调度其他 agent",
+      "routing": "order",
+      "stays": "auto",
+      "context": "1m",
+      "levels": "medium",
+      "models": [
+        "srv/claude/claude-opus-5-5",
+        "agy-cli/gemini-4-neon",
+        "kimi/k3.1-pro"
+      ]
+    }
+  ]
+}

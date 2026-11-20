@@ -162,6 +162,7 @@ chezmoi 的源路径与目标路径不一定逐字对应：`dot_` 加前置点�
 - [`docs/pi-webfetch.md`](docs/pi-webfetch.md) — webfetch 三个外部 CLI 的落点：`scrapling` 为什么走 `uv tool`、上游 `scrapling install` 在 Arch 上必失败的原因、`[shell]` 与 `[fetchers]` 的区别。
 - [`docs/lightpanda.md`](docs/lightpanda.md) — 原生 headless 浏览器接进 pi 的内置 MCP：实测耗时、markdown 不抽正文的边界、CDP 与 `create_` 目标的同步方式。
 - [`docs/magpie.md`](docs/magpie.md) — Magpie 网关与 AI Agent（pi / claude / codex / agy）的跨平台安装、无密种子初始化、SRV 端点外置与 `/magpie-auth` 浏览器鉴权接力。
+- [`docs/magpie-routing.md`](docs/magpie-routing.md) — 路由组 `group/grunt`（subagent）/ `workhorse`（按计划执行）/ `leader`（对谈与规划）：跨供应商并档次、撞 5 小时 / 7 天限额自动换成员，以及 `context` / `levels` / `stays` 不设会踩的坑。
 - [`docs/windows-shell.md`](docs/windows-shell.md) — Windows 的 shell 层：scoop、Clink 的 `session.cmd` 接线、用户环境变量、批处理必须 CRLF。
 - [`docs/windows-sshd.md`](docs/windows-sshd.md) — Windows 开 OpenSSH Server：能力名与默认 shell、Administrators 组的授权文件位置、scoop 的 `current` 挂载点为何在提权令牌下无法遍历。
 - [`docs/waybar.md`](docs/waybar.md) — 模块基线与行高约定、配色、`cffi/niri-windows`、GPU 与磁盘取值脚本。

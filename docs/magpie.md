@@ -30,6 +30,8 @@ Magpie 与各 Agent 在运行时都会持续写回配置文件：
 
 - `settings.json` 通过 `magpie settings set` 只在首次 seed 时写入通用偏好；
 - `providers.json`（Unix 下强制 `0600`）首次写入，或仅在首次合并**缺失的 Provider ID**，绝不覆盖已有条目与 Key；
+- 路由组不写进 `providers.json`，而是由 `scripts/magpie/groups.json` 声明、`magpie group add/set`
+  播种（见 [`magpie-routing.md`](magpie-routing.md)）；因为组只含模型 id 与策略，没有凭据；
 - `~/.pi/agent/*`、`~/.claude/settings.json`、`~/.codex/*.toml` 仅在目标文件**不存在**时写入初始偏好。
 
 ---
@@ -79,3 +81,11 @@ Magpie 与各 Agent 在运行时都会持续写回配置文件：
 
 Windows 的 PowerShell 写入统一采用无 BOM UTF-8，避免 JSON/TOML 解析失败；`pi` 的扩展继续由
 `~/bin/pi-config`（Windows 下 `C:\bin\pi-config`）独立仓库管理，本方案不接管扩展目录。
+
+---
+
+## 路由组
+
+同一个 agent 需要多个供应商的模型互相兜底时，用 `group/<id>` 把同档次模型并成一个，而不是
+在 agent 里逐个换。分组方式、`routing` 语义与参数陷阱见
+[`magpie-routing.md`](magpie-routing.md)。
