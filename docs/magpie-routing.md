@@ -270,5 +270,10 @@ magpie claude auto_mode group/grunt      # 低档、cheap，符合 auto mode 的
 `scripts/magpie/groups.json` 的 sha256，所以改声明 → 下一次 `chezmoi apply` 重跑一次；
 没改就不动。重跑会**把组改回声明的样子**——这正是固化，本机手工调过的顺序会被覆盖。
 
+**Windows 的一个坑**：`magpie.exe` 把输出写到控制台而不是管道，PowerShell 的 `& $exe models`
+捕获到 0 行（在 `cmd` 里跑却正常）。`Seed-Groups` 因此走 `cmd /c "… models > 临时文件"` 再回读。
+同一台机器上 `autostart` 的状态判断也受此影响 —— 读不到就当没开，每次重新 `autostart on`，
+无害但会重复执行。
+
 改分组的正确路径：改 `scripts/magpie/groups.json` → 提交 → 各机器 `chezmoi update`。
 想先在一台机器上试，直接跑播种那几条 `magpie group ...` 命令，满意后再回写声明。

@@ -106,9 +106,16 @@ function Seed-Groups {
   if (-not (Test-Path -LiteralPath $specPath)) { return }
   $spec = ([System.IO.File]::ReadAllText($specPath)) | ConvertFrom-Json
 
+  # magpie.exe writes to the console, not to a pipe, so its catalogue is read back
+  # through a file cmd can redirect. See docs/magpie-routing.md.
+  $catalog = Join-Path $env:TEMP 'magpie-seed-models.txt'
+  & cmd /c "`"$Magpie`" models > `"$catalog`" 2>nul"
   $known = @()
-  foreach ($line in @(& $Magpie models 2>$null)) {
-    if ($line -match '^\s{2}([^\s]+/[^\s]+)\s') { $known += $Matches[1] }
+  if (Test-Path -LiteralPath $catalog) {
+    foreach ($line in [System.IO.File]::ReadAllLines($catalog)) {
+      if ($line -match '^\s{2}([^\s]+/[^\s]+)\s') { $known += $Matches[1] }
+    }
+    Remove-Item -LiteralPath $catalog -ErrorAction SilentlyContinue
   }
   $known = @($known | Where-Object { $_ -notlike 'group/*' })
   if ($known.Count -eq 0) {
