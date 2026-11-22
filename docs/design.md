@@ -1217,4 +1217,6 @@ Unity 账号、许可证和 Hub/项目运行状态不入源。未修改 bootstra
 Magpie 与 pi / claude / codex 的配置均属运行时可变状态且包含密钥或登录态，不作为普通受管文件
 持续同步，而是采用「首次 seed + 状态标记（`~/.local/state/magpie-bootstrap/seeded`）+ 缺失 ID 合并」。
 私人 SRV 网关地址不入库，改由 `[data.magpie] srvUrl`、`MAGPIE_SRV_URL`、交互提示或 `/magpie-auth`
-阶段输入；三平台细节与恢复流程见 [magpie.md](magpie.md)。
+阶段输入；三平台细节与恢复流程见 [magpie.md](magpie.md)。各机之间的持续一致另走 Magpie
+自带的 GitHub 加密同步，与本节的首次 seed 互补，机制与部署见 [magpie.md](magpie.md) 的
+「跨机器同步」一节。

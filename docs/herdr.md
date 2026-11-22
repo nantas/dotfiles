@@ -47,6 +47,41 @@ Linux 那份走 `run_onchange_before_14-herdr.sh.tmpl`，与 scrapling、dev-run
 `brew upgrade --cask`。所以 `run_onchange_before_14-herdr.sh.tmpl` 在 `command -v herdr-app`
 为空时才下载，重跑 bootstrap 也不会乱动已装的版本。
 
+## Windows：core 的启动机制（实测）
+
+Windows 上 core 没有独立的开机自启：`hc server` 只有 `start|stop|status|restart`，
+`herdr-core serve` 没有安装为服务的参数，`keeps_running_after_logout` 在 Windows 上恒为
+`null`（linger 是 Linux/systemd 的事）。core 由 herdr-app 在启动时拉起，父子链是
+`herdr-app.exe → herdr-core connect → herdr-core serve → herdr-core hold`。
+
+因此登录后让 core 起来的办法是让 herdr-app 随登录启动。但上游的 `install.ps1`（app 与 core
+两份）都不写启动文件夹、不写 `HKCU\...\Run`，`herdr-app.exe` 本体也不含开机自启开关。
+实测（prismaticbridge）：`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\herdr-app.lnk`
+是**手工放置**的，指向 `%LOCALAPPDATA%\Programs\herdr-app\herdr-app.exe`、无参数，重装
+app 不会重建，本仓库目前不托管它；core 在登录后约一秒内起来。
+
+### 不要从 SSH 拉 core
+
+从 SSH 拉起 core 会被拒绝，报错大意：
+> refusing to start an elevated Windows core over SSH while this user has a desktop session
+
+原因：管理员账户经 OpenSSH 得到高完整性令牌、会话落在 Session 0，这样起的 core 其命名管道
+ACL 会挡住 Session 1 里中完整性的 herdr-app。这条守卫只在「没有可连接的 core、hc 想自己起
+一个」时触发；core 已在时 `hc exec --on <machine>` 直接连上。上游给出的补救是在那台机器的
+普通桌面终端里打开 Herdr 或运行 `hc server start`。只有 headless Windows 才允许经 SSH 起 core。
+
+同样不要用计划任务 `onstart` 或在 Session 0 起 core（与上面的 elevated 拒绝同一类问题），
+也不要在启动文件夹再放一个 core 的快捷方式去和 app 抢 `core.lock`。
+
+### 路径与当前状态
+
+core 的日志与状态实际在 `%LOCALAPPDATA%\herdr-core\default\`（`core.log`、`core.lock`、
+`terminals.json`、`peers.json`），与 Linux 的 `~/.local/state/herdr-core/` 布局不同。
+
+实测状态：prismaticbridge 尚未跑过 `bootstrap/windows.bat`（`where chezmoi`、`where scoop`、
+`%USERPROFILE%\bin`、`%USERPROFILE%\.config\chezmoi` 都不存在），因此本文档承诺的
+`%APPDATA%\herdr-core\templates\peer.md` 托管在它上面还没生效，`hc run peer` 会找不到模板。
+
 ## 配置文件
 
 `herdr-app` 的 home 三家一致。`src/mods.rs` 的 `app_dir()` 是 `$HERDR_APP_HOME`，否则
@@ -256,8 +291,7 @@ Windows。Linux 上的 `Noto Sans CJK SC` 又被本机 `fonts.conf` 重定向成
 herdr 的 `ui_font` 能接受逗号链（实测第一项生效），但平台已经分开，就没必要写整条。
 macOS 面板字体仍是 Ghostty 的 `PingFang SC`（见 `dot_config/ghostty/config`）。终端字号不跟
 Ghostty 的 16：app 里定成 15 后写回了源，免得下次 apply 盖回去。
-Windows 上模板只把面板字体换成 `Microsoft YaHei UI`，字号沿用
-默认 16；herdr-app 在那台机器上没有实测过，等做到 Windows 时再对。
+Windows 上模板只把面板字体换成 `Microsoft YaHei UI`，字号沿用默认 16。
 
 ## 剪贴板：远端面板里的复制
 

@@ -16,6 +16,69 @@
 
 ---
 
+## 跨机器同步（GitHub 加密）
+
+「为什么不直接托管」一节的种子只管**首次**无密初始化：`chezmoi apply` 在新机器上把骨架铺好，之后不再碰这些文件。
+各机之间的持续一致走另一条路：Magpie 自带的 GitHub 加密同步。两者不冲突——同步涉及的文件
+本就不在 chezmoi 托管内，下次 `chezmoi apply` 不会覆盖同步带来的内容。
+
+### 机制
+
+`magpie github on github://<owner>/<repo>` 把 `providers.json`、Agent 配置、`library/`、
+`memory/` 等内容用 passphrase 密封后，存进一个**私有** GitHub 仓库；GitHub 只收到密封文件，
+拿不到明文。token 需要该仓库的 Contents 读写权限，passphrase 各机相同。两者都只存在各机
+`~/.config/magpie/sync.json`（权限 600，不入库），经 `magpie github set token=` 或首次 `on`
+时的 stdin 提问写入，不进命令行参数、不进仓库。
+
+### 当前部署
+
+一台机器双向同步作为唯一上推方，其余机器 `magpie github follow on`（对应配置里的
+`followServer: true`）只接收、不上传。当前是 macOS 为上推方，Linux 桌面机（10.10.10.x 网段）
+与 Windows 机为跟随方。自动同步间隔 15 分钟：`magpie github auto 15`（对应 `autoEvery`）。
+
+`follow on` 的语义（依据 `internal/davsync` 的 `Config.FollowServer` 注释）：每次同步把服务器上
+变化的部分带进来，本机改动会被覆盖，并在 `~/.config/magpie/sync/` 留一份密封副本，`magpie
+github` 会给出 "Replaced here" 提示。该提示用 `magpie github dismiss` 清除（只清提示，不动
+内容）；`magpie github undo-sync` 才会真的把本机回滚到同步前。跟随方的同步**不会**让仓库
+产生新提交。
+
+### 验证同步一致性
+
+不写死某次哈希，用这几条可复用判据：
+
+- 三台机器 `~/.config/magpie/sync-state.json` 的 `server.etag` 与 `sum` 相同，且
+  `server.etag` 等于仓库中同步文件 blob 的 sha；
+- 跟随方同步前后，用 `git` / `gh` 查到的仓库 HEAD 不变；
+- `magpie github preview` 输出 `nothing would change`。
+
+### 新机器接入
+
+先备份本机已有的 `~/.config/magpie`（Windows 为 `%USERPROFILE%\.config\magpie`），再：
+
+```sh
+magpie github on github://<owner>/<repo> token= passphrase= keys=yes agents=yes library=yes memory=yes
+magpie github follow on
+magpie github auto 15
+```
+
+`token=` / `passphrase=` 必须留空：CLI 对空值才提问，非 TTY 时各读一行，按「第一行 token、
+第二行 passphrase」喂入。Windows 上可执行文件在 `%LOCALAPPDATA%\Programs\magpie\magpie.exe`。
+
+### 自动同步的前提与限制
+
+同步间隔由常驻的 gateway 进程驱动（每分钟看一次配置），不是 systemd timer。Linux 桌面靠
+`magpie autostart` 写的 XDG `~/.config/autostart/magpie.desktop`（图形登录才触发），Windows
+靠 `HKCU\...\Run` 里的 `magpie ... tray`。纯 SSH / 无登录会话时没有 gateway，`magpie github`
+仍会显示「每 N 分钟」，但不会真的同步。Linux 上没有 `magpie` 的 systemd 用户单元，这是正常的。
+
+### 不要做
+
+- 不要把 `sync.json` 放进 chezmoi 托管：它含凭据，且被 magpie 运行时改写，二次 `apply` 会打架。
+- 不要在跟随方上改配置指望它传回上推方：跟随方不上传，本地改动只会被下次同步覆盖（密封副本
+  会留在 `sync/`，见上）。
+
+---
+
 ## 为什么不直接托管 `~/.config/magpie/*.json`
 
 Magpie 与各 Agent 在运行时都会持续写回配置文件：
