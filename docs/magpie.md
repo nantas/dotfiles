@@ -30,11 +30,20 @@
 `~/.config/magpie/sync.json`（权限 600，不入库），经 `magpie github set token=` 或首次 `on`
 时的 stdin 提问写入，不进命令行参数、不进仓库。
 
+同步既有备份时，先核对私有仓库里的文件路径。地址写 `github://<owner>/<repo>` 时，
+Magpie 默认使用 `magpie/magpie.magpie-backup`。地址末尾加 `/magpie` 会多套一层目录，
+改用 `magpie/magpie/magpie.magpie-backup`。两个地址各自可以显示同步成功，因此还要核对
+所用的备份路径和预期配置。
+
+手动创建的路由组随 `providers` 一起同步，包括保存在组里的成员和路由规则。
+`auto/…` 是各机根据模型目录实时生成的组。用 `magpie groups` 检查所需的手动路由组是否到齐。
+
 ### 当前部署
 
 一台机器双向同步作为唯一上推方，其余机器 `magpie github follow on`（对应配置里的
 `followServer: true`）只接收、不上传。当前是 macOS 为上推方，Linux 桌面机（10.10.10.x 网段）
-与 Windows 机为跟随方。自动同步间隔 15 分钟：`magpie github auto 15`（对应 `autoEvery`）。
+与 Windows 机为跟随方。自动同步间隔按机器设置，macOS 当前为 15 分钟，Arch 为 3 分钟。
+用 `magpie github` 查看本机间隔，用 `magpie github auto 15` 将间隔改为 15 分钟。
 
 `follow on` 的语义（依据 `internal/davsync` 的 `Config.FollowServer` 注释）：每次同步把服务器上
 变化的部分带进来，本机改动会被覆盖，并在 `~/.config/magpie/sync/` 留一份密封副本，`magpie
@@ -63,6 +72,22 @@ magpie github auto 15
 
 `token=` / `passphrase=` 必须留空：CLI 对空值才提问，非 TTY 时各读一行，按「第一行 token、
 第二行 passphrase」喂入。Windows 上可执行文件在 `%LOCALAPPDATA%\Programs\magpie\magpie.exe`。
+
+### 切回私有仓库的默认备份路径
+
+在同一个仓库内纠正同步地址时，先保留当前备份。两端先设为跟随，避免切换时向目标备份写入。
+
+```sh
+magpie github follow on
+magpie github set 'address=github://<owner>/<repo>'
+magpie github
+magpie groups
+magpie github preview
+```
+
+把 `<owner>` 和 `<repo>` 替换成当前私有仓库的所有者和名称。改地址可能立即拉取。
+两端都确认已同步且路由组到齐后，只在 macOS 上执行 `magpie github follow off` 恢复双向同步。
+最后在两端用 `magpie github` 核对角色和自动同步间隔。
 
 ### 自动同步的前提与限制
 

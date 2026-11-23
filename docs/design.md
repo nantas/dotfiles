@@ -630,8 +630,7 @@ Windows 上由 `bootstrap/windows.bat` 的 `:ENSURE_PI_CONFIG` 步骤 clone 到 
 | `60-zed-cli` | `~/.local/bin/zed -> /usr/bin/zeditor` |
 
 **再跑一次 `chezmoi apply -v`：退出码 0、输出 0 行**——文件层与脚本层都是彻底的 no-op
-（`diff --include=files` 与 `--include=scripts` 均为 0）。这就是最终稳态：日常 apply 只做配置
-同步，装包与重建只发生在首次、或相关源文件真的变化时。
+（`diff --include=files` 与 `--include=scripts` 均为 0）。这是当时的实测结果。现有 `run_after_` 脚本每次都会执行，当前验收见上文的 `/apply`。
 
 期间验证了整条技术链：`.tmpl` 的 `sourceDir` 渲染、`include | sha256sum` 的变更检测、脚本
 能 source 到被 `.chezmoiignore` 排除的 `scripts/` 辅助文件、`wnmw_*` 函数与网络比对。

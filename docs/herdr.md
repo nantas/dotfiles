@@ -17,6 +17,44 @@
 是另一个 daemon（Herdr 2），与它们不共享会话，`herdr` 与 Sheprd 的目录、pi 集成扩展与 skill
 都已清除。
 
+## 本机 hc 与局域网终端
+
+本机 macOS 通过 `PATH` 调用 `hc`，连接本机运行的 herdr-core。当前使用默认 CLI 配置，
+`~/.config/herdr-core/config.toml` 未创建。远端机器通过 SSH 注册到本机 core。家里和公司
+各有一组终端，换网络后先查看当前可连接的机器，再选终端。
+
+```sh
+command -v hc
+hc -V
+hc server status
+hc machine ls
+hc ls
+```
+
+`hc server status` 显示本机 core 的版本和运行状态。`hc machine ls` 显示已注册机器的
+`name`、SSH 目标 `target` 和连接状态 `state`。`hc ls` 列出本机与已连接远端的活动终端。
+
+已注册的机器显示 `connected` 时，用 `name` 执行一次性命令，或从 `hc ls` 复制远端终端地址来接入。
+下面的变量分别填入当场查到的机器名和终端地址。
+
+```sh
+hc exec --on "$machine" uname -s
+hc exec --on "$machine" hc server status
+hc attach "$terminal"
+```
+
+要添加局域网里的新机器，将 `ssh_target` 设为可用的 SSH Host 别名或 `用户@主机`，
+将 `machine` 设为本机用于识别它的名称。先配置 SSH 公钥登录，再运行以下命令。
+
+```sh
+hc machine add --name "$machine" "$ssh_target"
+hc machine ls
+hc exec --on "$machine" uname -s
+```
+
+`hc machine ls` 只列出已经注册的机器。连接失败时，先按列表里的 `target` 核对当前网络和 SSH
+登录是否可用。命令和本机配置选项可用 `hc --skill` 查询。
+
 ## peer 模板
 
 `templates/peer.md` 只写怎么定位自己、怎么找到同一个 Herdr space 里的其他 agent、以及怎么用 `hc send` 说话。它不规定 agent 的任务。文件名去掉 `.md` 就是模板名，所以启动是 `hc run peer "<任务>"`。正文在每次 `hc run` 时重新读入，成为第一条消息；已经跑着的 agent 不会自动重读，要改规矩就 `hc send` 让它去读这份文件。
@@ -144,8 +182,8 @@ dot_config/herdr-app/layouts/main-mine.json
 每次 apply 都从 `codeload.github.com/jwu/herdr-sidebar-mods/tar.gz/<REV>` 取一次包，
 所以 push 之后下一次 apply 就跟上，几台机器始终同版。`run_after_16-herdr-mods.sh.tmpl`
 管 macOS / Linux，`run_after_16-herdr-mods.ps1.tmpl` 管 Windows；两者解开后落到
-`~/.config/herdr-app/mods/`，并删掉早先的 `spaces-mine` / `agents-mine`。headless
-机器跳过（没有窗口可画）。
+`~/.config/herdr-app/mods/`。解包后比较两个模块目录，内容一致就跳过安装。
+成功取包后仍会清理早先的 `spaces-mine` / `agents-mine`。headless 机器跳过（没有窗口可画）。
 
 用 `run_` 而不是 `run_onchange_`：onchange 只在模板内容变化时执行，跟 `main` 就再也
 不会重跑。代价是每次 apply 走一次网络（curl `--connect-timeout 10 --max-time 90`）；
