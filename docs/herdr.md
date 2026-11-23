@@ -66,6 +66,13 @@ hc exec --on "$machine" uname -s
 
 两份源内容相同。Windows 的 herdr-core 不读 `~/.config`，所以 `.chezmoiignore` 在 Windows 上排除 `.config/herdr-core`，避免落到没人读的位置。`command` 是 `pi`；那台机器没有 `pi` 时，`hc run peer` 起不来，文件仍可被已有 agent 读。
 
+模板正文曾被仓库外的东西截短过一次（2026-11-23 10:09，`grunt.md` / `peer.md` / `workhorse.md`
+三份同时只剩 frontmatter，127–209 字节；`hc templates` 只读这些文件，不写，已排除）。
+chezmoi 发现目标在它上次写入后被改过，就把这次 apply 当成会丢数据、要求交互确认：非交互
+环境（agent、脚本、SSH）里直接报 `could not open a new TTY` 并退出 1。确认家目录那份不是
+自己要留的，用 `chezmoi apply --force --include=files` 覆盖回源；不要为了绕过提示去
+`chezmoi add`，那会把截短的版本写回源。
+
 ## 安装
 
 | 平台 | `herdr-app` |
