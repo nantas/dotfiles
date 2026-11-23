@@ -10,11 +10,16 @@ fi
 # env vars
 # ------------------------------
 
+{{ if eq .chezmoi.os "linux" -}}
 export PATH=~/bin:~/.local/bin:/usr/local/bin:$PATH
+{{ else -}}
+# Homebrew first so the CLI and the fsmonitor daemon share one git build; see
+# docs/shell.md.
+export PATH=/opt/homebrew/bin:/opt/homebrew/sbin:$HOME/.local/bin:$PATH
+{{ end -}}
 export ZSH=~/.oh-my-zsh
-export EDITOR=nvim
 export LANG=en_US.UTF-8
-export STARSHIP_CONFIG=~/.config/starship.toml
+export OBSIDIAN_VAULT_PATH="$HOME/projects/obsidian-mind"
 {{ if eq .chezmoi.os "linux" -}}
 export PI_NERD_FONTS=1
 export COLORTERM=truecolor
@@ -27,11 +32,8 @@ export PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0
 # zsh & oh-my-zsh
 # ------------------------------
 
-# make sure omz dircolors works
-# NOTE: you must install gdircolors on macOS with brew install coreutils
-if (( $+commands[gdircolors] )) && ! (( $+commands[dircolors] )); then
-  eval $(gdircolors)
-fi
+# Symlinked cwd resolves to its real path.
+setopt CHASE_LINKS
 
 # ZSH_THEME="one-dark"
 
@@ -48,45 +50,35 @@ source $ZSH/oh-my-zsh.sh
 [[ -n ${SSH_CONNECTION:-} ]] && ZSH_THEME_TERM_TITLE_IDLE="🖥(${${(s: :)SSH_CONNECTION}[3]}) %~"
 
 source $ZSH/custom/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-eval "$(starship init zsh)"
-eval "$(zoxide init zsh)"
 
 # ------------------------------
-# fzf
+# pi
 # ------------------------------
 
-source <(fzf --zsh)
-
-# use fd instead of find for better performance
-export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
-
-# better ctrl-r
-export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border --preview 'echo {}' --preview-window down:3:hidden:wrap --bind '?:toggle-preview'"
-
-# better ctrl-t
-export FZF_CTRL_T_OPTS="--walker-skip .git,node_modules,target --preview 'bat -n --color=always {}' --bind 'ctrl-/:change-preview-window(down|hidden|)'"
+# Use the local proxy only while it is listening; otherwise stay direct.
+pi() {
+  if nc -z -w 1 127.0.0.1 7890 2>/dev/null; then
+    http_proxy=http://127.0.0.1:7890 \
+      https_proxy=http://127.0.0.1:7890 \
+      all_proxy=socks5://127.0.0.1:7890 \
+      no_proxy="localhost,127.0.0.1,local,.local,192.168.0.0/16" \
+      command pi "$@"
+  else
+    command pi "$@"
+  fi
+}
 
 # ------------------------------
-# eza alias
+# aliases
 # ------------------------------
 
-alias ls='eza'
-alias ll='eza -lh --icons'
-alias la='eza -lah --icons'
-alias lt='eza --icons --tree'
+alias python='python3'
+alias pip='pip3'
 {{ if eq .chezmoi.os "linux" -}}
 open() {
   setsid -f xdg-open "$@" >/dev/null 2>&1 </dev/null
 }
 {{ end }}
-# ------------------------------
-# bat configs
-# ------------------------------
-
-export BAT_PAGER="less -RF"
-export BAT_THEME="TwoDark"
-export MANPAGER="sh -c 'col -bx | bat -l man -p'"
-
 # ------------------------------
 # mihomo proxy shortcuts
 # ------------------------------
@@ -253,8 +245,11 @@ _wattach_apply() {
 # MacOS Applications
 # ------------------------------
 
-alias neovide="/Applications/Neovide.app/Contents/MacOS/neovide --fork"
-alias zed="/Applications/Zed.app/Contents/MacOS/cli"
+# Only alias apps that are really installed here.
+[[ -x /Applications/Neovide.app/Contents/MacOS/neovide ]] &&
+  alias neovide="/Applications/Neovide.app/Contents/MacOS/neovide --fork"
+[[ -x /Applications/Zed.app/Contents/MacOS/cli ]] &&
+  alias zed="/Applications/Zed.app/Contents/MacOS/cli"
 {{ end }}
 # ------------------------------
 # dev envs
