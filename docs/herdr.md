@@ -218,6 +218,45 @@ chezmoi execute-template < run_after_16-herdr-mods.sh.tmpl | bash
 本机正在开发这一版时，直接把仓库里的 `mods/sidebar-*` cp 到
 `~/.config/herdr-app/mods/` 覆盖即可；下一次 apply 会用远端 `main` 把本地覆盖回去。
 
+### 查本机装的是哪一版
+
+本机没有任何可读的版本记录：`mods/sidebar-*/mod.json` 只有 `place` 与 `title`，
+`~/.config/herdr-app/installed.json` 存的是内容哈希，`~/.local/state/herdr-sidebar-mods/`
+里只有 `layout-initialized` 标记。所以版本只能靠「磁盘上的文件 vs 上游 tag」比对：
+
+```sh
+for m in sidebar-agents sidebar-spaces; do
+  shasum -a 256 ~/.config/herdr-app/mods/$m/main.js
+done
+```
+
+再拿同一份文件在不同 tag 下的哈希对照（tag 不可变，所以下表一直有效）：
+
+| tag | `sidebar-agents/main.js` | `sidebar-spaces/main.js` |
+| --- | --- | --- |
+| v0.1.0 | `ad49c449a0b99bdafa4d56b601a2a569c10f5bf5586b290fe6e92437563d6028` | `a365ccf28b5063c855ebcc61deb53265a61ba9734e8ec4cf278336cee0ec9007` |
+| v0.2.0 | `ea3d93bc98f7cf41b790c241220c27700bf6ca21737ebc3195876c6f192e8e91` | `23b112146fc8b80c28a15c38e9737c1ae86a6bb84511f3824256e1e481a6671e` |
+| v0.3.0 | `369e5e708a374b959d3a87c9c5638e8f3ce055191747c42e751d313bc777599c` | `b21972b045407a183d66766c3583e6c121fd9c85a30057fe7e6a5ed40618f10c` |
+
+两个文件都对上同一个 tag 才是那一版；只对上其中一个，说明本地那份被手改过。取某个
+ref 的文件哈希不必 clone：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/jwu/herdr-sidebar-mods/main/mods/sidebar-agents/main.js | shasum -a 256
+```
+
+「上次 apply 成功过」不等于「现在是最新」：安装只发生在 apply 那一刻，`main` 之后又
+push 就等于落后。2026-11-23 实测过一次——01:57 的 apply 装到当时 `main`（v0.1.0，提交
+`64819d584400`），02:07 比对确认「与远端一致」为真；v0.2.0 在 02:46 才发，本机就一直
+停在 v0.1.0，直到 03:03 手动跑了一次安装脚本才跟上；同日 03:14 上游又发 v0.3.0，
+11:20 的那次整机 apply 就自己装上了。判据只能是「现在磁盘的哈希 vs
+上游现在的 `main`」，中间没有自动轮询，也没有后台更新。
+
+想钉版本时补一句：`sidebarModsRev` 填 tag 名会让脚本报 `missing a mod` 退出。脚本按
+`herdr-sidebar-mods-$REV/mods` 拼解包路径，而 GitHub 对 tag `v0.2.0` 的归档顶层目录叫
+`herdr-sidebar-mods-0.2.0`（`v` 被吃掉），于是 `$SRC/sidebar-*/main.js` 找不到。填完整
+commit SHA 没有这个问题，归档目录就是 `herdr-sidebar-mods-<SHA>/`。
+
 ## 让 layout 自己切过去
 
 `shared.json` 混着 `layout`、`space.colors`、`workspace.panels`、`frame.welcomed` 这些
