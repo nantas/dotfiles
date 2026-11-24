@@ -17,8 +17,8 @@
 ### 常用命令
 
 ```bash
-chezmoi diff --include=files     # 看配置层会改什么；判据是必须为空
-chezmoi apply -v                 # 应用；再跑一次检查退出码和脚本输出
+chezmoi diff --include=files     # 预览目标机器的文件差异
+chezmoi apply -v                 # 仅在用户明确要求部署时运行
 chezmoi status                   # A/M/D 与待跑脚本的紧凑视图
 chezmoi managed --include=files  # 源目前管着哪些目标
 chezmoi execute-template < f.tmpl | diff - ~/path   # 单独渲染一个模板并比对
@@ -57,7 +57,8 @@ dotfiles/
 
 ## 工作流程
 
-`改动源` → `chezmoi diff --include=files` → `apply` → 再 `apply` 检查脚本并确认文件 diff 为空 → 提交。
+改动源后检查 diff，按改动类型验证，再按用户授权提交。本机配置由用户自行维护。
+只有用户明确要求在指定机器上部署时，才先比对再运行 `chezmoi apply`。
 
 任何改变仓库结构的改动，先看 `docs/design.md` 有没有对应章节需要同步——它是设计真源，
 文档与源不一致时以源为准，但要把文档修回来。
@@ -107,13 +108,8 @@ dotfiles/
 - 提交信息用**英文**，说明**为什么**而不是改了什么。风格看 `git log`：短句、conventional
   前缀（`feat:` / `fix:` / `refactor:` / `docs:` / `chore:` / `style:` / `ignore:`）。
 - 一次提交一个主题，允许细分——历史里有大量单主题的小提交。
-- 提交前必须：
-
-  ```bash
-  chezmoi apply -v                # 再跑一次，要求退出码为 0，检查脚本输出
-  chezmoi diff --include=files     # 必须为空
-  ```
-
+- 提交前运行 `git diff --check` 和 `git diff --cached --check`，检查本次改动。模板改动应渲染验证。
+  本机的 chezmoi 文件差异不阻塞提交。
 - `run_after_` 脚本每次都会执行，`-v` 打印脚本内容属于正常输出。脚本报告失败或跳过同步时要检查原因。
 - `run_onchange_` 脚本内容一变就会重跑，这是刻意的。失败的脚本会被一并记进
   `scriptState` 而**不会**自动重试，修好后要先清记账：
@@ -156,7 +152,7 @@ dotfiles/
 
 ### 以下操作必须先征求用户同意
 
-- 对一台**尚未比对**的机器执行 `chezmoi apply`。
+- 在任何机器上执行 `chezmoi apply`，并在执行前比对该机器。
 - 大规模移动或重命名源文件。
 - 删除文件、`chezmoi forget`、`git filter-repo`、force push。
 - `git commit` 与 `git push`。
