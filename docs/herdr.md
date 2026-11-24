@@ -55,6 +55,24 @@ hc exec --on "$machine" uname -s
 `hc machine ls` 只列出已经注册的机器。连接失败时，先按列表里的 `target` 核对当前网络和 SSH
 登录是否可用。命令和本机配置选项可用 `hc --skill` 查询。
 
+### 通过 SSH 连接 VPS 的指定 session
+
+用 VPS 的 SSH 账号和公网地址组成 `ssh_target`，用远端 herdr-core 的 session 名设置
+`hc_session`。SSH 账号决定远端命令以哪个用户运行，`--session` 决定连接该用户的哪套终端。
+
+```sh
+ssh_target='<ssh-user>@<vps-ip>'
+hc_session='<session-name>'
+ssh -o BatchMode=yes "$ssh_target" id -un
+hc machine add "$ssh_target" --session "$hc_session"
+hc machine ls
+```
+
+在 `hc machine ls` 核对新条目的 `target`、`session` 和 `state`。显示 `connected` 后，
+用列表里的 `name` 运行 `hc exec --on "$machine" id -un`，确认远端身份。
+更换 SSH 账号或 session 时，先用 `hc machine rm "$old_machine"` 移除旧条目，再按上面的命令添加。
+移除连接条目后，旧 session 的终端仍在 VPS 上运行。
+
 ## peer 模板
 
 `templates/peer.md` 只写怎么定位自己、怎么找到同一个 Herdr space 里的其他 agent、以及怎么用 `hc send` 说话。它不规定 agent 的任务。文件名去掉 `.md` 就是模板名，所以启动是 `hc run peer "<任务>"`。正文在每次 `hc run` 时重新读入，成为第一条消息；已经跑着的 agent 不会自动重读，要改规矩就 `hc send` 让它去读这份文件。
